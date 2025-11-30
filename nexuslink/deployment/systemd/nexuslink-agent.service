@@ -1,0 +1,33 @@
+[Unit]
+Description=NexusLink Agent/Redirector
+Documentation=https://github.com/afuzapratama/nexuslink
+After=network.target nexuslink-api.service
+Requires=nexuslink-api.service
+
+[Service]
+Type=simple
+User=nexus
+Group=nexus
+WorkingDirectory=/opt/nexuslink
+ExecStart=/opt/nexuslink/nexus-agent
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/nexuslink/agent.log
+StandardError=append:/var/log/nexuslink/agent-error.log
+
+# Environment
+EnvironmentFile=/opt/nexuslink/.env
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/nexuslink
+
+# Resource Limits
+LimitNOFILE=65536
+LimitNPROC=512
+
+[Install]
+WantedBy=multi-user.target

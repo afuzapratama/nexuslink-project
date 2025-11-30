@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development
+*.log
+api.log
+agent.log
+
+# Build artifacts
+main
+api
+build/
+dashboard/
+
+# Documentation
+*.md
+!README.md
+
+# Test files
+test-*.sh
+scripts/test-*.sh
+
+# DynamoDB local data
+dynamodb-data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

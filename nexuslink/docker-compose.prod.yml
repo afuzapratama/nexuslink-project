@@ -1,0 +1,159 @@
+version: '3.8'
+
+services:
+  # Redis untuk rate limiting & caching
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis-prod
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${NEXUS_REDIS_PASSWORD}
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "${NEXUS_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # API Server (Brain)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: nexus-api-prod
+    restart: unless-stopped
+    ports:
+      - "${NEXUS_API_PORT:-8080}:8080"
+    environment:
+      # DynamoDB - AWS Production
+      NEXUS_DYNAMO_ENDPOINT: ${NEXUS_DYNAMO_ENDPOINT}
+      NEXUS_AWS_REGION: ${NEXUS_AWS_REGION:-ap-southeast-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      
+      # API Configuration
+      NEXUS_HTTP_ADDR: ":8080"
+      NEXUS_API_KEY: ${NEXUS_API_KEY}
+      
+      # Redis
+      NEXUS_REDIS_ADDR: redis:6379
+      NEXUS_REDIS_PASSWORD: ${NEXUS_REDIS_PASSWORD}
+      
+      # Optional: GeoIP
+      NEXUS_MAXMIND_DB_PATH: ${NEXUS_MAXMIND_DB_PATH:-}
+      
+      # Optional: IP Check Services
+      NEXUS_PROXYCHECK_API_KEY: ${NEXUS_PROXYCHECK_API_KEY:-}
+      NEXUS_IPQS_API_KEY: ${NEXUS_IPQS_API_KEY:-}
+      
+      # Timezone
+      TZ: ${TZ:-Asia/Jakarta}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+
+  # Agent/Redirector (Muscle) - Optional, untuk testing
+  # Dalam production biasanya agent di-deploy terpisah di server edge
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    container_name: nexus-agent-prod
+    restart: unless-stopped
+    ports:
+      - "${NEXUS_AGENT_PORT:-9090}:9090"
+    environment:
+      # API Connection
+      NEXUS_API_BASE: http://api:8080
+      NEXUS_AGENT_API_KEY: ${NEXUS_API_KEY}
+      
+      # Node Configuration
+      NEXUS_NODE_TOKEN: ${NEXUS_NODE_TOKEN:-}
+      NEXUS_NODE_NAME: ${NEXUS_NODE_NAME:-Production Agent}
+      NEXUS_NODE_REGION: ${NEXUS_NODE_REGION:-ID-JKT}
+      NEXUS_NODE_PUBLIC_URL: ${NEXUS_NODE_PUBLIC_URL:-http://localhost:9090}
+      NEXUS_NODE_DOMAIN: ${NEXUS_NODE_DOMAIN:-localhost}
+      
+      # Debug
+      NEXUS_DEBUG_IP: ${NEXUS_DEBUG_IP:-}
+      
+      # Timezone
+      TZ: ${TZ:-Asia/Jakarta}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+        compress: "true"
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  nexus-network:
+    driver: bridge

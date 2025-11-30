@@ -1,0 +1,33 @@
+[Unit]
+Description=NexusLink API Server
+Documentation=https://github.com/afuzapratama/nexuslink
+After=network.target
+
+[Service]
+Type=simple
+User=nexus
+Group=nexus
+WorkingDirectory=/opt/nexuslink
+ExecStart=/opt/nexuslink/nexus-api
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/nexuslink/api.log
+StandardError=append:/var/log/nexuslink/api-error.log
+
+# Environment
+Environment="NEXUS_HTTP_ADDR=:8080"
+EnvironmentFile=/opt/nexuslink/.env
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/nexuslink
+
+# Resource Limits
+LimitNOFILE=65536
+LimitNPROC=512
+
+[Install]
+WantedBy=multi-user.target

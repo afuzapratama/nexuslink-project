@@ -1,0 +1,48 @@
+# Binaries
+/api
+/agent
+/main
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Environment files (NEVER commit production secrets!)
+.env
+.env.local
+.env.production
+
+# Keep only example files
+!.env.example
+!.env.production.example
+
+# DynamoDB Local Data
+/dynamodb-data/
+*.db
+
+# Logs
+*.log
+logs/
+*.out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go specific
+*.test
+*.prof
+vendor/
+dist/
+build/
+
+# Redis dumps
+dump.rdb
+appendonly.aof

@@ -122,7 +122,11 @@ echo ""
 # Get node ID from agent logs or use default
 NODE_ID=$(curl -s "$API_BASE/admin/nodes" \
   -H "X-Nexus-Api-Key: $API_KEY" | \
-  jq -r '.[0].id // "node-localhost"')
+  grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+if [ -z "$NODE_ID" ]; then
+    NODE_ID="node-localhost"
+fi
 
 echo "Adding 'link.htmlin.my.id' to node $NODE_ID..."
 curl -s -X POST "$API_BASE/admin/nodes/$NODE_ID/domains" \

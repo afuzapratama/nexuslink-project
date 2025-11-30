@@ -196,15 +196,29 @@ func refreshAllowedDomains(apiBase, apiKey string) {
 	// Update allowed domains with PublicURL + Domains array
 	newDomains := []string{}
 	
-	// Add PublicURL domain (extract domain from URL)
+	// Add PublicURL domain (extract domain from URL, strip port)
 	if node.PublicURL != "" {
 		if u, err := url.Parse(node.PublicURL); err == nil && u.Host != "" {
-			newDomains = append(newDomains, u.Host)
+			host := u.Host
+			// Strip port if exists
+			if idx := strings.Index(host, ":"); idx != -1 {
+				host = host[:idx]
+			}
+			newDomains = append(newDomains, host)
 		}
 	}
 	
-	// Add all registered domains
-	newDomains = append(newDomains, node.Domains...)
+	// Add all registered domains (strip port from each)
+	for _, d := range node.Domains {
+		domain := strings.TrimSpace(d)
+		// Strip port if exists
+		if idx := strings.Index(domain, ":"); idx != -1 {
+			domain = domain[:idx]
+		}
+		if domain != "" {
+			newDomains = append(newDomains, domain)
+		}
+	}
 	
 	allowedDomains = newDomains
 	domainsLastUpdate = time.Now()

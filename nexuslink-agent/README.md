@@ -384,12 +384,20 @@ curl -fsSL ... | bash -s -- (same command as before)
 
 ## 📦 Hosting on CDN
 
-### Option 1: GitHub Raw (Free, Simple)
+### Option 1: GitHub Raw (Free, Recommended)
 
-Already works! Use:
+Use directly from GitHub:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- ...
+curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \
+  --domain=go.htmlin.my.id \
+  --api=https://api.htmlin.my.id \
+  --key=your-api-key \
+  --token=your-node-token \
+  --email=admin@htmlin.my.id
 ```
+
+✅ **Pros:** Always up-to-date, no hosting needed  
+⚠️ **Note:** Requires GitHub access (usually fine for production)
 
 ### Option 2: Custom Domain with Cloudflare Pages
 

@@ -26,8 +26,7 @@ set -e
 trap 'handle_error $?' EXIT
 
 VERSION="1.0.0"
-BINARY_URL="https://github.com/afuzapratama/nexuslink-project/releases/latest/download/agent"
-SOURCE_URL="https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/cmd/agent/main.go"
+GITHUB_REPO="https://github.com/afuzapratama/nexuslink-project.git"
 
 # Colors
 RED='\033[0;31m'
@@ -260,33 +259,26 @@ echo -e "${YELLOW}[6/10] Building Agent Binary${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 mkdir -p $INSTALL_DIR
-cd $INSTALL_DIR
 
-# Try to download prebuilt binary first
-log_info "Checking for prebuilt binary..."
-if curl -fsSL -o agent "$BINARY_URL" 2>/dev/null; then
-    chmod +x agent
-    log_success "Downloaded prebuilt binary"
-else
-    # Build from source
-    log_info "Building from source..."
-    
-    # Download minimal source
-    mkdir -p /tmp/nexuslink-build
-    cd /tmp/nexuslink-build
-    
-    git clone --depth 1 https://github.com/afuzapratama/nexuslink-project.git . > /dev/null 2>&1
-    cd nexuslink
-    
-    log_info "Compiling agent..."
-    /usr/local/go/bin/go build -o $INSTALL_DIR/agent cmd/agent/main.go
-    
-    cd $INSTALL_DIR
-    chmod +x agent
-    rm -rf /tmp/nexuslink-build
-    
-    log_success "Agent compiled successfully"
-fi
+# Build from source
+log_info "Cloning repository..."
+mkdir -p /tmp/nexuslink-build
+cd /tmp/nexuslink-build
+
+git clone --depth 1 $GITHUB_REPO . > /dev/null 2>&1
+cd nexuslink
+
+log_info "Downloading dependencies..."
+/usr/local/go/bin/go mod download > /dev/null 2>&1
+
+log_info "Compiling agent binary..."
+/usr/local/go/bin/go build -ldflags="-s -w" -o $INSTALL_DIR/agent cmd/agent/main.go
+
+cd $INSTALL_DIR
+chmod +x agent
+rm -rf /tmp/nexuslink-build
+
+log_success "Agent compiled successfully"
 
 # Verify binary
 if [ ! -x "$INSTALL_DIR/agent" ]; then

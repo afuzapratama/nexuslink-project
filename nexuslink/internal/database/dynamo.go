@@ -68,7 +68,7 @@ func Client() *dynamodb.Client {
 		} else {
 			// Production mode: AWS DynamoDB
 			log.Println("Using AWS DynamoDB (production)")
-			
+
 			// Check for explicit credentials in ENV
 			accessKeyID := nexusConfig.GetEnv("AWS_ACCESS_KEY_ID", "")
 			secretAccessKey := nexusConfig.GetEnv("AWS_SECRET_ACCESS_KEY", "")
@@ -85,7 +85,7 @@ func Client() *dynamodb.Client {
 			} else {
 				// Use default AWS credential chain (IAM role, ~/.aws/credentials, etc)
 				log.Println("Using AWS default credential chain (IAM role or ~/.aws/credentials)")
-				
+
 				// Load default config (akan pakai IAM role kalau di EC2)
 				ctx := context.Background()
 				defaultCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))

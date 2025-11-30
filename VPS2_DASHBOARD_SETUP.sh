@@ -83,23 +83,43 @@ read -r EMAIL </dev/tty
 # Step 5: Create ENV file
 echo -e "\n${BLUE}[5/10] Creating environment file...${NC}"
 cd nexuslink-dashboard
-cat > .env.production << EOF
+
+# Copy from example and update values
+if [ -f ".env.dashboard.example" ]; then
+    cp .env.dashboard.example .env.production
+    echo -e "${GREEN}✓ Copied from .env.dashboard.example${NC}"
+else
+    echo -e "${YELLOW}⚠️  .env.dashboard.example not found, creating from scratch${NC}"
+    cat > .env.production << 'ENVEOF'
 # ========================================
-# NexusLink Dashboard - Production Config
-# Generated: $(date)
+# NexusLink Dashboard Environment
+# VPS Role: Dashboard Server ONLY
 # ========================================
 
-# API Connection
-NEXUS_API_BASE=$API_URL
-NEXUS_API_KEY=$API_KEY
+# API Connection (REQUIRED)
+NEXUS_API_BASE=PLACEHOLDER_API_URL
+NEXUS_API_KEY=PLACEHOLDER_API_KEY
 
-# Next.js Public Config
+# Next.js Configuration
 NEXT_PUBLIC_APP_NAME=NexusLink Dashboard
-NEXT_PUBLIC_API_BASE=$API_URL
-EOF
+NEXT_PUBLIC_API_BASE=PLACEHOLDER_API_URL
+ENVEOF
+fi
+
+# Update with actual values
+sed -i "s|NEXUS_API_BASE=.*|NEXUS_API_BASE=$API_URL|g" .env.production
+sed -i "s|NEXUS_API_KEY=.*|NEXUS_API_KEY=$API_KEY|" .env.production
+sed -i "s|NEXT_PUBLIC_API_BASE=.*|NEXT_PUBLIC_API_BASE=$API_URL|" .env.production
 
 chmod 600 .env.production
-echo -e "${GREEN}✅ Environment file created${NC}"
+echo -e "${GREEN}✅ Environment file configured${NC}"
+echo ""
+echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  Dashboard Configuration${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
+echo -e "  API URL: ${BOLD}$API_URL${NC}"
+echo -e "  Domain: ${BOLD}$DOMAIN${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
 
 # Step 6: Install dependencies
 echo -e "\n${BLUE}[6/10] Installing dependencies...${NC}"

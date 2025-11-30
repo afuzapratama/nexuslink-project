@@ -128,17 +128,38 @@ cp .env.api.example .env.production
 
 # Step 8: Configure ENV
 echo -e "\n${BLUE}[8/12] Configuring environment variables...${NC}"
-echo -e "${YELLOW}Choose DynamoDB setup method:${NC}"
-echo "1. IAM Role (Recommended for production)"
-echo "2. Access Keys (For testing)"
+echo ""
+echo -e "${YELLOW}═══════════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}  AWS DynamoDB Configuration${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════════${NC}"
+echo ""
+echo -e "${BOLD}Choose authentication method:${NC}"
+echo ""
+echo -e "  ${GREEN}1.${NC} IAM Role (Recommended for production)"
+echo -e "     - No hardcoded credentials"
+echo -e "     - Requires IAM role attached to EC2"
+echo -e "     - More secure"
+echo ""
+echo -e "  ${GREEN}2.${NC} Access Keys (Simpler, works immediately)"
+echo -e "     - Use AWS Access Key ID + Secret Key"
+echo -e "     - Works on any server"
+echo -e "     - Easier to setup"
+echo ""
 read -p "Enter choice (1 or 2): " DYNAMO_CHOICE
 
 if [ "$DYNAMO_CHOICE" = "2" ]; then
     echo ""
+    echo -e "${BLUE}Using Access Keys method${NC}"
+    echo -e "${YELLOW}You need AWS credentials from IAM console:${NC}"
+    echo -e "  1. Go to: https://console.aws.amazon.com/iam/home#/users"
+    echo -e "  2. Select your user → Security credentials"
+    echo -e "  3. Create access key → Copy Access Key ID & Secret"
+    echo ""
+    
     read -p "Enter AWS Access Key ID: " AWS_KEY_ID
     read -sp "Enter AWS Secret Access Key: " AWS_SECRET
     echo ""
-    read -p "Enter AWS Region (default: ap-southeast-1): " AWS_REGION
+    read -p "Enter AWS Region (press Enter for ap-southeast-1): " AWS_REGION
     AWS_REGION=${AWS_REGION:-ap-southeast-1}
     
     # Update ENV with credentials
@@ -146,10 +167,19 @@ if [ "$DYNAMO_CHOICE" = "2" ]; then
     sed -i "s|AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=$AWS_SECRET|" .env.production
     sed -i "s|NEXUS_AWS_REGION=.*|NEXUS_AWS_REGION=$AWS_REGION|" .env.production
     
-    echo -e "${GREEN}✅ Using Access Keys${NC}"
+    echo ""
+    echo -e "${GREEN}✅ Access Keys configured!${NC}"
 else
     echo ""
-    read -p "Enter AWS Region (default: ap-southeast-1): " AWS_REGION
+    echo -e "${BLUE}Using IAM Role method${NC}"
+    echo -e "${YELLOW}⚠️  Make sure you have:${NC}"
+    echo -e "  1. Created IAM role with DynamoDB permissions"
+    echo -e "  2. Attached role to this EC2 instance"
+    echo -e "  3. Verified role: ${BOLD}curl http://169.254.169.254/latest/meta-data/iam/security-credentials/${NC}"
+    echo ""
+    read -p "Press Enter if role is attached, or Ctrl+C to abort..."
+    
+    read -p "Enter AWS Region (press Enter for ap-southeast-1): " AWS_REGION
     AWS_REGION=${AWS_REGION:-ap-southeast-1}
     
     # Comment out AWS credentials
@@ -157,7 +187,8 @@ else
     sed -i 's|^AWS_SECRET_ACCESS_KEY=|#AWS_SECRET_ACCESS_KEY=|' .env.production
     sed -i "s|NEXUS_AWS_REGION=.*|NEXUS_AWS_REGION=$AWS_REGION|" .env.production
     
-    echo -e "${GREEN}✅ Using IAM Role (make sure it's attached to this EC2)${NC}"
+    echo ""
+    echo -e "${GREEN}✅ IAM Role configured!${NC}"
 fi
 
 # Ensure DynamoDB endpoint is empty (production = AWS DynamoDB)
@@ -168,12 +199,22 @@ sed -i "s|NEXUS_API_KEY=.*|NEXUS_API_KEY=$API_KEY|" .env.production
 sed -i "s|NEXUS_REDIS_PASSWORD=.*|NEXUS_REDIS_PASSWORD=$REDIS_PASSWORD|" .env.production
 sed -i "s|NEXUS_API_PORT=.*|NEXUS_API_PORT=8080|" .env.production
 
+echo ""
 echo -e "${GREEN}✅ Environment file configured!${NC}"
 echo ""
-echo -e "${BLUE}Configuration summary:${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
+echo -e "${BLUE}  Configuration Summary${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
+if [ "$DYNAMO_CHOICE" = "2" ]; then
+    echo -e "  Auth Method: ${BOLD}Access Keys${NC}"
+    echo -e "  Access Key: ${BOLD}${AWS_KEY_ID:0:20}...${NC}"
+else
+    echo -e "  Auth Method: ${BOLD}IAM Role${NC}"
+fi
 echo -e "  DynamoDB: ${BOLD}AWS DynamoDB (${AWS_REGION})${NC}"
 echo -e "  Redis: ${BOLD}localhost:6379${NC}"
 echo -e "  API Port: ${BOLD}8080${NC}"
+echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
 
 # Step 9: Verify ENV configuration
 echo -e "\n${BLUE}[9/11] Verifying environment configuration...${NC}"

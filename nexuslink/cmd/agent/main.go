@@ -23,14 +23,20 @@ type Link struct {
 }
 
 type Node struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	Region       string `json:"region"`
-	PublicURL    string `json:"publicUrl"`
-	AgentVersion string `json:"agentVersion"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Region       string   `json:"region"`
+	PublicURL    string   `json:"publicUrl"`
+	Domains      []string `json:"domains"`
+	AgentVersion string   `json:"agentVersion"`
 }
 
-var currentNodeID string
+var (
+	currentNodeID     string
+	allowedDomains    []string
+	domainsLastUpdate time.Time
+	domainsCacheTTL   = 30 * time.Second
+)
 
 func main() {
 	// load .env
@@ -140,9 +146,94 @@ func registerNodeWithToken(apiBase, apiKey, token, domain, region, publicURL, na
 	if out.NodeID != "" {
 		currentNodeID = out.NodeID
 		log.Printf("Registered as nodeID=%s domain=%s", out.NodeID, domain)
+		
+		// Initialize allowed domains with registration domain
+		allowedDomains = []string{domain}
+		domainsLastUpdate = time.Now()
+		
+		// Fetch full node info including all domains
+		go refreshAllowedDomains(apiBase, apiKey)
 	}
 
 	return nil
+}
+
+// refreshAllowedDomains fetches current node info from API to get updated domain list
+func refreshAllowedDomains(apiBase, apiKey string) {
+	if currentNodeID == "" {
+		return
+	}
+
+	urlStr := fmt.Sprintf("%s/admin/nodes/%s", apiBase, url.QueryEscape(currentNodeID))
+	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
+	if err != nil {
+		log.Printf("refreshAllowedDomains: error creating request: %v", err)
+		return
+	}
+
+	if apiKey != "" {
+		req.Header.Set("X-Nexus-Api-Key", apiKey)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Printf("refreshAllowedDomains: error fetching node info: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("refreshAllowedDomains: unexpected status %d", resp.StatusCode)
+		return
+	}
+
+	var node Node
+	if err := json.NewDecoder(resp.Body).Decode(&node); err != nil {
+		log.Printf("refreshAllowedDomains: error decoding response: %v", err)
+		return
+	}
+
+	// Update allowed domains with PublicURL + Domains array
+	newDomains := []string{}
+	
+	// Add PublicURL domain (extract domain from URL)
+	if node.PublicURL != "" {
+		if u, err := url.Parse(node.PublicURL); err == nil && u.Host != "" {
+			newDomains = append(newDomains, u.Host)
+		}
+	}
+	
+	// Add all registered domains
+	newDomains = append(newDomains, node.Domains...)
+	
+	allowedDomains = newDomains
+	domainsLastUpdate = time.Now()
+	
+	log.Printf("Domain whitelist updated: %v (nodeID=%s)", allowedDomains, currentNodeID)
+}
+
+// isDomainAllowed checks if the request domain is in the allowed list
+func isDomainAllowed(domain string) bool {
+	// Refresh cache if expired
+	if time.Since(domainsLastUpdate) > domainsCacheTTL {
+		// Non-blocking refresh (use cached while refreshing)
+		// This will be called in background via goroutine in redirect handler
+	}
+	
+	if len(allowedDomains) == 0 {
+		// No domain restrictions (backward compatibility or fresh node)
+		return true
+	}
+	
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	
+	for _, allowed := range allowedDomains {
+		if strings.EqualFold(allowed, domain) {
+			return true
+		}
+	}
+	
+	return false
 }
 
 // startHeartbeat → kirim status node berkala ke /nodes/heartbeat
@@ -162,6 +253,7 @@ func startHeartbeat(apiBase, apiKey, nodeName, nodeRegion, nodePublicURL string)
 		defer ticker.Stop()
 
 		for {
+			// Send heartbeat
 			body, _ := json.Marshal(node)
 
 			req, err := http.NewRequest(http.MethodPost, urlStr, bytes.NewReader(body))
@@ -183,6 +275,9 @@ func startHeartbeat(apiBase, apiKey, nodeName, nodeRegion, nodePublicURL string)
 					}
 				}
 			}
+
+			// Refresh allowed domains every heartbeat (30s)
+			refreshAllowedDomains(apiBase, apiKey)
 
 			<-ticker.C
 		}
@@ -210,6 +305,19 @@ func redirectHandler(w http.ResponseWriter, r *http.Request, apiBase, apiKey str
 	// Remove port if exists
 	if idx := strings.Index(currentDomain, ":"); idx != -1 {
 		currentDomain = currentDomain[:idx]
+	}
+
+	// Security: Validate domain is allowed for this node
+	if !isDomainAllowed(currentDomain) {
+		log.Printf("Access denied: domain=%s not in whitelist %v (alias=%s)", 
+			currentDomain, allowedDomains, alias)
+		http.Error(w, "This domain is not authorized to serve links from this node", http.StatusForbidden)
+		return
+	}
+
+	// Trigger background domain cache refresh if needed (non-blocking)
+	if time.Since(domainsLastUpdate) > domainsCacheTTL {
+		go refreshAllowedDomains(apiBase, apiKey)
 	}
 
 	// ambil info visitor (IP, UA, referer)

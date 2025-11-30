@@ -345,16 +345,44 @@ func main() {
 
 	// Node domain management endpoints
 	mux.HandleFunc("/admin/nodes/", handler.WithAgentAuth(func(w http.ResponseWriter, r *http.Request) {
-		// Parse nodeID from path: /admin/nodes/:id/domains
+		// Parse path: /admin/nodes/:id or /admin/nodes/:id/domains
 		path := strings.TrimPrefix(r.URL.Path, "/admin/nodes/")
 		parts := strings.Split(path, "/")
 
-		if len(parts) < 2 || parts[1] != "domains" {
-			http.Error(w, "invalid path", http.StatusBadRequest)
+		if len(parts) == 0 || parts[0] == "" {
+			http.Error(w, "node ID is required", http.StatusBadRequest)
 			return
 		}
 
 		nodeID := parts[0]
+
+		// GET /admin/nodes/:id - Get single node details
+		if len(parts) == 1 {
+			if r.Method != http.MethodGet {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+
+			node, err := nodeRepo.GetByID(r.Context(), nodeID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if node == nil {
+				http.Error(w, "node not found", http.StatusNotFound)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(node)
+			return
+		}
+
+		// Domain management: /admin/nodes/:id/domains
+		if len(parts) < 2 || parts[1] != "domains" {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
 
 		switch r.Method {
 		case http.MethodPost:

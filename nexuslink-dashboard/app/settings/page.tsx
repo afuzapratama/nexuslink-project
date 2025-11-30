@@ -149,9 +149,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleSaveRateLimit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    
+  async function handleSaveRateLimit() {
     if (ipLimit < 1 || linkLimit < 1 || windowSeconds < 1) {
       showToast('Semua nilai harus lebih dari 0', 'error');
       return;
@@ -313,7 +311,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Rate Limiting Configuration */}
-          <form onSubmit={handleSaveRateLimit} className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-5">
             <div>
               <h2 className="text-base font-semibold text-slate-50">
                 Rate Limiting
@@ -397,7 +395,8 @@ export default function SettingsPage() {
 
                 <div className="flex items-center gap-3 pt-2">
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSaveRateLimit}
                     disabled={savingRateLimit}
                     className="flex h-9 items-center gap-2 rounded-lg bg-sky-500 px-5 text-sm font-medium text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -420,7 +419,7 @@ export default function SettingsPage() {
                 </div>
               </>
             )}
-          </form>
+          </div>
 
           {/* Blocking Rules */}
           <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-5">

@@ -182,9 +182,11 @@ else
     echo -e "  2. Attached role to this EC2 instance"
     echo -e "  3. Verified role: ${BOLD}curl http://169.254.169.254/latest/meta-data/iam/security-credentials/${NC}"
     echo ""
-    read -p "Press Enter if role is attached, or Ctrl+C to abort..."
-    
-    read -p "Enter AWS Region (press Enter for ap-southeast-1): " AWS_REGION
+    echo -e "${GREEN}Press Enter if role is attached, or Ctrl+C to abort...${NC}"
+    read -r </dev/tty
+    echo ""
+    echo -n "Enter AWS Region (press Enter for ap-southeast-1): "
+    read -r AWS_REGION </dev/tty
     AWS_REGION=${AWS_REGION:-ap-southeast-1}
     
     # Comment out AWS credentials
@@ -196,13 +198,14 @@ else
     echo -e "${GREEN}✅ IAM Role configured!${NC}"
 fi
 
-# Ensure DynamoDB endpoint is empty (production = AWS DynamoDB)
-sed -i 's|^NEXUS_DYNAMO_ENDPOINT=.*|NEXUS_DYNAMO_ENDPOINT=|' .env.production
-
-# Update other ENV values
+# Update other ENV values (API key, Redis, port)
 sed -i "s|NEXUS_API_KEY=.*|NEXUS_API_KEY=$API_KEY|" .env.production
 sed -i "s|NEXUS_REDIS_PASSWORD=.*|NEXUS_REDIS_PASSWORD=$REDIS_PASSWORD|" .env.production
 sed -i "s|NEXUS_API_PORT=.*|NEXUS_API_PORT=8080|" .env.production
+
+# CRITICAL: Ensure DynamoDB endpoint is EMPTY (production = AWS DynamoDB)
+# This must be done LAST to avoid being overwritten
+sed -i 's|^NEXUS_DYNAMO_ENDPOINT=.*|NEXUS_DYNAMO_ENDPOINT=|' .env.production
 
 echo ""
 echo -e "${GREEN}✅ Environment file configured!${NC}"

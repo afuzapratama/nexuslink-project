@@ -6,8 +6,9 @@ const API_KEY = process.env.NEXUS_API_KEY!;
 // POST /api/nexus/nodes/:id/domains - Add domain to node
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const body = await request.json();
     const { domain } = body;
@@ -19,7 +20,7 @@ export async function POST(
       );
     }
 
-    const res = await fetch(`${API_BASE}/admin/nodes/${params.id}/domains`, {
+    const res = await fetch(`${API_BASE}/admin/nodes/${id}/domains`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,8 +51,9 @@ export async function POST(
 // DELETE /api/nexus/nodes/:id/domains?domain=example.com - Remove domain from node
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const { searchParams } = new URL(request.url);
     const domain = searchParams.get('domain');
@@ -64,7 +66,7 @@ export async function DELETE(
     }
 
     const res = await fetch(
-      `${API_BASE}/admin/nodes/${params.id}/domains?domain=${encodeURIComponent(domain)}`,
+      `${API_BASE}/admin/nodes/${id}/domains?domain=${encodeURIComponent(domain)}`,
       {
         method: 'DELETE',
         headers: {

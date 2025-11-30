@@ -146,11 +146,11 @@ func registerNodeWithToken(apiBase, apiKey, token, domain, region, publicURL, na
 	if out.NodeID != "" {
 		currentNodeID = out.NodeID
 		log.Printf("Registered as nodeID=%s domain=%s", out.NodeID, domain)
-		
+
 		// Initialize allowed domains with registration domain
 		allowedDomains = []string{domain}
 		domainsLastUpdate = time.Now()
-		
+
 		// Fetch full node info including all domains
 		go refreshAllowedDomains(apiBase, apiKey)
 	}
@@ -195,7 +195,7 @@ func refreshAllowedDomains(apiBase, apiKey string) {
 
 	// Update allowed domains with PublicURL + Domains array
 	newDomains := []string{}
-	
+
 	// Add PublicURL domain (extract domain from URL, strip port)
 	if node.PublicURL != "" {
 		if u, err := url.Parse(node.PublicURL); err == nil && u.Host != "" {
@@ -207,7 +207,7 @@ func refreshAllowedDomains(apiBase, apiKey string) {
 			newDomains = append(newDomains, host)
 		}
 	}
-	
+
 	// Add all registered domains (strip port from each)
 	for _, d := range node.Domains {
 		domain := strings.TrimSpace(d)
@@ -219,10 +219,10 @@ func refreshAllowedDomains(apiBase, apiKey string) {
 			newDomains = append(newDomains, domain)
 		}
 	}
-	
+
 	allowedDomains = newDomains
 	domainsLastUpdate = time.Now()
-	
+
 	log.Printf("Domain whitelist updated: %v (nodeID=%s)", allowedDomains, currentNodeID)
 }
 
@@ -233,20 +233,20 @@ func isDomainAllowed(domain string) bool {
 		// Non-blocking refresh (use cached while refreshing)
 		// This will be called in background via goroutine in redirect handler
 	}
-	
+
 	if len(allowedDomains) == 0 {
 		// No domain restrictions (backward compatibility or fresh node)
 		return true
 	}
-	
+
 	domain = strings.ToLower(strings.TrimSpace(domain))
-	
+
 	for _, allowed := range allowedDomains {
 		if strings.EqualFold(allowed, domain) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -323,7 +323,7 @@ func redirectHandler(w http.ResponseWriter, r *http.Request, apiBase, apiKey str
 
 	// Security: Validate domain is allowed for this node
 	if !isDomainAllowed(currentDomain) {
-		log.Printf("Access denied: domain=%s not in whitelist %v (alias=%s)", 
+		log.Printf("Access denied: domain=%s not in whitelist %v (alias=%s)",
 			currentDomain, allowedDomains, alias)
 		http.Error(w, "This domain is not authorized to serve links from this node", http.StatusForbidden)
 		return

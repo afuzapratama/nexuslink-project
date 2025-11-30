@@ -12,32 +12,33 @@ Panduan untuk update VPS yang sudah running dengan perubahan code terbaru dari G
 # SSH ke VPS
 ssh root@YOUR_VPS_IP
 
-# Navigate to project
-cd /opt/nexuslink/nexuslink
+# Navigate to project (as ubuntu user)
+sudo su - ubuntu
+cd ~/nexuslink-project/nexuslink
 
 # Pull latest code
 git pull origin main
 
 # Rebuild binary
-go build -ldflags="-s -w" -o /opt/nexuslink/nexuslink/api cmd/api/main.go
+go build -ldflags="-s -w" -o api cmd/api/main.go
 
 # Restart service
-systemctl restart nexuslink-api
+sudo systemctl restart nexuslink-api
 
 # Check status
-systemctl status nexuslink-api
+sudo systemctl status nexuslink-api
 
 # View logs (real-time)
-journalctl -u nexuslink-api -f
+sudo journalctl -u nexuslink-api -f
 ```
 
 **One-liner:**
 ```bash
-cd /opt/nexuslink/nexuslink && \
+cd ~/nexuslink-project/nexuslink && \
 git pull origin main && \
 go build -ldflags="-s -w" -o api cmd/api/main.go && \
-systemctl restart nexuslink-api && \
-systemctl status nexuslink-api --no-pager
+sudo systemctl restart nexuslink-api && \
+sudo systemctl status nexuslink-api --no-pager
 ```
 
 ---
@@ -174,7 +175,7 @@ echo "✅ All agents updated!"
 
 ```bash
 # 1. Check service running
-systemctl is-active nexuslink-api
+sudo systemctl is-active nexuslink-api
 # Expected: active
 
 # 2. Check health endpoint
@@ -187,7 +188,7 @@ curl -s http://localhost:8080/admin/nodes \
 # Expected: JSON node list
 
 # 4. Check logs for errors
-journalctl -u nexuslink-api -n 50 | grep -i error
+sudo journalctl -u nexuslink-api -n 50 | grep -i error
 # Expected: No critical errors
 ```
 
@@ -304,17 +305,17 @@ sudo -u nexus ./api
 **Fix:**
 ```bash
 # Check ENV file intact
-cat /opt/nexuslink/nexuslink/.env.production
+cat ~/nexuslink-project/nexuslink/.env.production
 
 # Check port
 netstat -tlnp | grep 8080
 
 # Restart dependencies
-systemctl restart redis
-docker-compose -f /opt/nexuslink/docker-compose.yml restart
+sudo systemctl restart redis
+# Note: DynamoDB is AWS service, not local
 
 # Retry
-systemctl restart nexuslink-api
+sudo systemctl restart nexuslink-api
 ```
 
 ### Issue 4: Dashboard Build Fails
@@ -367,29 +368,29 @@ journalctl -u nexuslink-agent -n 20 | grep whitelist
 
 **API Server (VPS1):**
 ```bash
-# 1. Pull code
-cd /opt/nexuslink/nexuslink
+# 1. Pull code (as ubuntu user)
+cd ~/nexuslink-project/nexuslink
 git pull origin main
 
 # 2. Build new binary with different name
 go build -ldflags="-s -w" -o api.new cmd/api/main.go
 
-# 3. Test new binary
-sudo -u nexus ./api.new &
-TEST_PID=$!
-sleep 3
-curl -s http://localhost:8081/health || kill $TEST_PID
-kill $TEST_PID
+# 3. Test new binary (optional)
+# ./api.new &
+# TEST_PID=$!
+# sleep 3
+# curl -s http://localhost:8080/health
+# kill $TEST_PID
 
 # 4. Swap binaries
 mv api api.old
 mv api.new api
 
 # 5. Restart service (downtime: ~1-2 seconds)
-systemctl restart nexuslink-api
+sudo systemctl restart nexuslink-api
 
 # 6. Verify
-systemctl status nexuslink-api
+sudo systemctl status nexuslink-api
 curl -s http://localhost:8080/health
 
 # 7. Cleanup
@@ -425,15 +426,15 @@ If update includes new ENV variables:
 
 ### VPS1 - API
 ```bash
-# Edit ENV
-nano /opt/nexuslink/nexuslink/.env.production
+# Edit ENV (as ubuntu user)
+nano ~/nexuslink-project/nexuslink/.env.production
 
 # Add new variables from .env.example
 # Example:
 NEXUS_NEW_FEATURE=enabled
 
 # Restart
-systemctl restart nexuslink-api
+sudo systemctl restart nexuslink-api
 ```
 
 ### VPS2 - Dashboard
@@ -468,12 +469,12 @@ systemctl restart nexuslink-agent
 Keep track of updates:
 
 ```bash
-# Create update log
-cat >> /root/nexuslink-updates.log << EOF
+# Create update log (as ubuntu user)
+cat >> ~/nexuslink-updates.log << EOF
 =====================================
 Date: $(date)
 Component: API Server (VPS1)
-Commit: $(cd /opt/nexuslink/nexuslink && git rev-parse HEAD)
+Commit: $(cd ~/nexuslink-project/nexuslink && git rev-parse HEAD)
 Changes: Domain validation security feature
 Status: ✅ Success
 Downtime: ~2 seconds
@@ -490,8 +491,8 @@ If update causes issues:
 
 ### Rollback API (VPS1)
 ```bash
-# 1. Check git log
-cd /opt/nexuslink/nexuslink
+# 1. Check git log (as ubuntu user)
+cd ~/nexuslink-project/nexuslink
 git log --oneline -5
 
 # 2. Rollback to previous commit
@@ -501,10 +502,10 @@ git reset --hard HEAD~1
 go build -ldflags="-s -w" -o api cmd/api/main.go
 
 # 4. Restart
-systemctl restart nexuslink-api
+sudo systemctl restart nexuslink-api
 
 # 5. Verify
-systemctl status nexuslink-api
+sudo systemctl status nexuslink-api
 ```
 
 ### Rollback Dashboard (VPS2)
@@ -555,17 +556,17 @@ curl -I https://dashboard.htmlin.my.id
 curl -s https://go.htmlin.my.id/health
 
 # If all fail, check from VPS directly:
-ssh root@api-vps "systemctl status nexuslink-api"
+ssh ubuntu@api-vps "sudo systemctl status nexuslink-api"
 ssh root@dashboard-vps "pm2 status"
 ssh root@agent-vps "systemctl status nexuslink-agent"
 ```
 
 **Critical issue checklist:**
-- [ ] Services running? (`systemctl status`)
+- [ ] Services running? (`sudo systemctl status`)
 - [ ] Ports open? (`netstat -tlnp | grep PORT`)
-- [ ] Database accessible? (`redis-cli ping`, DynamoDB check)
+- [ ] Database accessible? (`redis-cli -a PASSWORD ping`, DynamoDB AWS console)
 - [ ] Disk space? (`df -h`)
-- [ ] Logs? (`journalctl -u SERVICE -n 100`)
+- [ ] Logs? (`sudo journalctl -u SERVICE -n 100`)
 
 ---
 

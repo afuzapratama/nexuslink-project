@@ -8,94 +8,30 @@ export default function NodeInstallPage() {
   const { showToast } = useToast();
   const [token, setToken] = useState('');
   const [domain, setDomain] = useState('go.yourdomain.com');
-  const [apiUrl, setApiUrl] = useState('http://localhost:8080');
+  const [apiUrl, setApiUrl] = useState('https://api.htmlin.my.id');
   const [apiKey, setApiKey] = useState('your-api-key');
-  const [region, setRegion] = useState('ID-JKT');
+  const [email, setEmail] = useState('admin@yourdomain.com');
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     showToast(`${label} copied to clipboard!`, 'success');
   };
 
-  const systemdService = `[Unit]
-Description=Nexus Agent - Multi-node Redirect System
-After=network.target
-
-[Service]
-Type=simple
-User=nexus
-WorkingDirectory=/opt/nexuslink
-Environment="NEXUS_API_BASE=${apiUrl}"
-Environment="NEXUS_AGENT_API_KEY=${apiKey}"
-Environment="NEXUS_NODE_TOKEN=${token || 'YOUR_TOKEN'}"
-Environment="NEXUS_NODE_DOMAIN=${domain}"
-Environment="NEXUS_NODE_REGION=${region}"
-Environment="NEXUS_NODE_PUBLIC_URL=https://${domain}"
-Environment="NEXUS_HTTP_ADDR=:9090"
-ExecStart=/opt/nexuslink/nexus-agent
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target`;
-
-  const dockerCompose = `version: '3.8'
-
-services:
-  nexus-agent:
-    image: ghcr.io/yourusername/nexus-agent:latest
-    container_name: nexus-agent
-    restart: unless-stopped
-    ports:
-      - "9090:9090"
-    environment:
-      - NEXUS_API_BASE=${apiUrl}
-      - NEXUS_AGENT_API_KEY=${apiKey}
-      - NEXUS_NODE_TOKEN=${token || 'YOUR_TOKEN'}
-      - NEXUS_NODE_DOMAIN=${domain}
-      - NEXUS_NODE_REGION=${region}
-      - NEXUS_NODE_PUBLIC_URL=https://${domain}
-      - NEXUS_HTTP_ADDR=:9090
-    networks:
-      - nexus-network
-
-networks:
-  nexus-network:
-    driver: bridge`;
-
-  const manualRun = `# Set environment variables
-export NEXUS_API_BASE="${apiUrl}"
-export NEXUS_AGENT_API_KEY="${apiKey}"
-export NEXUS_NODE_TOKEN="${token || 'YOUR_TOKEN'}"
-export NEXUS_NODE_DOMAIN="${domain}"
-export NEXUS_NODE_REGION="${region}"
-export NEXUS_NODE_PUBLIC_URL="https://${domain}"
-export NEXUS_HTTP_ADDR=":9090"
-
-# Run the agent
-./nexus-agent`;
-
-  const nginxConfig = `server {
-    listen 80;
-    server_name ${domain};
-
-    location / {
-        proxy_pass http://127.0.0.1:9090;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}`;
+  const installCommand = `curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \\
+  --domain=${domain} \\
+  --api=${apiUrl} \\
+  --key=${apiKey} \\
+  --token=${token || 'YOUR_TOKEN'} \\
+  --email=${email}`;
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-50">Node Installation Guide</h1>
+          <h1 className="text-3xl font-bold text-slate-50">🚀 Agent Installation Guide</h1>
           <p className="mt-2 text-slate-400">
-            Step-by-step instructions to deploy Nexus Agent on your VPS
+            Deploy NexusLink Agent in 3 minutes with automated installer
           </p>
         </div>
         <Link
@@ -109,269 +45,259 @@ export NEXUS_HTTP_ADDR=":9090"
       {/* Configuration Form */}
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
         <h2 className="mb-4 text-lg font-semibold text-slate-50">
-          1️⃣ Configure Your Node
+          1️⃣ Configure Your Agent
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-300">
+            <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="token-input">
               Node Token
             </label>
             <input
+              id="token-input"
               type="text"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Generate token in Nodes page"
+              placeholder="Generate token on Nodes page"
               className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-600 focus:outline-none"
             />
-            <p className="mt-1 text-xs text-slate-500">
-              Create a new token in the <Link href="/nodes" className="text-sky-400 hover:underline">Nodes page</Link>
-            </p>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-300">
+            <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="domain-input">
               Domain
             </label>
             <input
+              id="domain-input"
               type="text"
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus:border-slate-600 focus:outline-none"
+              placeholder="e.g., go.yourdomain.com"
+              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-600 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-300">
+            <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="api-url-input">
               API URL
             </label>
             <input
+              id="api-url-input"
               type="text"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus:border-slate-600 focus:outline-none"
+              placeholder="https://api.htmlin.my.id"
+              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-600 focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-300">
+            <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="api-key-input">
               API Key
             </label>
             <input
+              id="api-key-input"
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus:border-slate-600 focus:outline-none"
+              placeholder="Your API key from VPS1"
+              className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-600 focus:outline-none"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-300">
-              Region
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-300" htmlFor="email-input">
+              Email (for SSL certificate)
             </label>
             <input
-              type="text"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder="e.g., ID-JKT, US-NYC, SG-SIN"
+              id="email-input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@yourdomain.com"
               className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-600 focus:outline-none"
             />
           </div>
         </div>
       </div>
 
-      {/* Installation Methods */}
-      <div className="space-y-6">
-        {/* Systemd Service */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-50">
-              2️⃣ Method A: Systemd Service (Recommended)
+      {/* One-Command Installer */}
+      <div className="rounded-xl border border-green-900/50 bg-green-950/30 p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-green-50">
+              2️⃣ One-Command Installation (Recommended)
             </h2>
-            <button
-              onClick={() => copyToClipboard(systemdService, 'Systemd config')}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700"
-            >
-              📋 Copy
-            </button>
+            <p className="mt-1 text-sm text-green-300/70">
+              Automated installer handles everything: Go, Nginx, SSL, Agent binary, Systemd service
+            </p>
           </div>
-          <div className="space-y-4">
+          <button
+            onClick={() => copyToClipboard(installCommand, 'Install command')}
+            className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-500"
+          >
+            📋 Copy Command
+          </button>
+        </div>
+        <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-green-100">
+          {installCommand}
+        </pre>
+        <div className="mt-4 space-y-2 text-sm text-green-200">
+          <p className="font-semibold">✨ What this installer does:</p>
+          <ul className="ml-6 space-y-1 text-green-300/80">
+            <li>• Verifies DNS points to your server</li>
+            <li>• Installs Go 1.23, Nginx, Certbot</li>
+            <li>• Compiles agent binary from source</li>
+            <li>• Configures systemd service (auto-start)</li>
+            <li>• Sets up Nginx reverse proxy</li>
+            <li>• Obtains SSL certificate (Let&apos;s Encrypt)</li>
+            <li>• Configures firewall (UFW)</li>
+          </ul>
+          <p className="mt-3 font-medium">⏱️ Total time: ~3 minutes per agent</p>
+        </div>
+      </div>
+
+      {/* Prerequisites */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-slate-50">
+          📋 Prerequisites
+        </h2>
+        <div className="space-y-3 text-sm text-slate-300">
+          <div className="flex items-start gap-3">
+            <span className="text-lg">1️⃣</span>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-300">
-                Step 1: Download Agent Binary
-              </h3>
-              <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-                {`# Download latest release
-wget https://github.com/yourusername/nexuslink/releases/latest/download/nexus-agent-linux-amd64
-
-# Make executable
-chmod +x nexus-agent-linux-amd64
-
-# Move to system directory
-sudo mv nexus-agent-linux-amd64 /opt/nexuslink/nexus-agent`}
-              </pre>
+              <p className="font-medium text-slate-200">DNS Configuration</p>
+              <p className="text-slate-400">
+                Add A record: <code className="rounded bg-slate-800 px-1.5 py-0.5">{domain}</code> → Your VPS IP
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Wait 5-15 minutes for DNS propagation. Verify: <code className="rounded bg-slate-800 px-1.5 py-0.5">dig {domain} +short</code>
+              </p>
             </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-lg">2️⃣</span>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-300">
-                Step 2: Create Systemd Service
-              </h3>
-              <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-                {systemdService}
-              </pre>
+              <p className="font-medium text-slate-200">Fresh Ubuntu 22.04 VPS</p>
+              <p className="text-slate-400">Minimum: 1GB RAM, 1 CPU core, 10GB disk</p>
             </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-lg">3️⃣</span>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-slate-300">
-                Step 3: Enable & Start Service
-              </h3>
-              <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-                {`# Save the above config to /etc/systemd/system/nexus-agent.service
-sudo systemctl daemon-reload
-sudo systemctl enable nexus-agent
-sudo systemctl start nexus-agent
-
-# Check status
-sudo systemctl status nexus-agent
-
-# View logs
-sudo journalctl -u nexus-agent -f`}
-              </pre>
+              <p className="font-medium text-slate-200">Root or sudo access</p>
+              <p className="text-slate-400">Installer needs sudo privileges to install packages</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-lg">4️⃣</span>
+            <div>
+              <p className="font-medium text-slate-200">Generate Node Token</p>
+              <p className="text-slate-400">
+                Go to <Link href="/nodes" className="text-blue-400 hover:underline">Nodes page</Link> and click &quot;Generate Token&quot;
+              </p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Docker Compose */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-50">
-              3️⃣ Method B: Docker Compose
-            </h2>
-            <button
-              onClick={() => copyToClipboard(dockerCompose, 'Docker Compose config')}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700"
-            >
-              📋 Copy
-            </button>
-          </div>
-          <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-            {dockerCompose}
-          </pre>
-          <div className="mt-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-300">Run with Docker</h3>
+      {/* Post-Installation */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-slate-50">
+          ✅ Post-Installation Verification
+        </h2>
+        <div className="space-y-4">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-slate-300">Check Service Status</h3>
             <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-              {`# Save the above as docker-compose.yml
-docker-compose up -d
-
-# View logs
-docker-compose logs -f nexus-agent`}
+              {`sudo systemctl status nexuslink-agent`}
             </pre>
           </div>
-        </div>
-
-        {/* Manual Run */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-50">
-              4️⃣ Method C: Manual Run
-            </h2>
-            <button
-              onClick={() => copyToClipboard(manualRun, 'Manual run script')}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700"
-            >
-              📋 Copy
-            </button>
-          </div>
-          <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-            {manualRun}
-          </pre>
-        </div>
-
-        {/* Nginx Configuration */}
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-50">
-              5️⃣ Nginx Reverse Proxy (Optional)
-            </h2>
-            <button
-              onClick={() => copyToClipboard(nginxConfig, 'Nginx config')}
-              className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700"
-            >
-              📋 Copy
-            </button>
-          </div>
-          <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-            {nginxConfig}
-          </pre>
-          <div className="mt-4">
-            <h3 className="mb-2 text-sm font-semibold text-slate-300">Setup SSL with Certbot</h3>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-slate-300">View Logs</h3>
             <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
-              {`# Install certbot
-sudo apt install certbot python3-certbot-nginx
-
-# Get SSL certificate
-sudo certbot --nginx -d ${domain}
-
-# Auto-renewal is configured by default`}
+              {`sudo journalctl -u nexuslink-agent -f`}
             </pre>
           </div>
-        </div>
-
-        {/* Verification */}
-        <div className="rounded-xl border border-emerald-800/50 bg-emerald-950/20 p-6">
-          <h2 className="mb-4 text-lg font-semibold text-emerald-300">
-            ✅ Verification Checklist
-          </h2>
-          <div className="space-y-2 text-sm text-slate-300">
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5">☑</span>
-              <span>Agent is running and logs show no errors</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5">☑</span>
-              <span>Node appears as "Online" in the <Link href="/nodes" className="text-emerald-400 hover:underline">Nodes page</Link></span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5">☑</span>
-              <span>Test redirect: <code className="rounded bg-slate-800 px-1 py-0.5 font-mono text-xs">curl {domain}/r/test</code></span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5">☑</span>
-              <span>Firewall allows port 9090 (or your configured port)</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5">☑</span>
-              <span>DNS A record points to your VPS IP</span>
-            </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-slate-300">Test Health Endpoint</h3>
+            <pre className="overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100">
+              {`curl https://${domain}/health`}
+            </pre>
+            <p className="mt-2 text-xs text-slate-400">
+              Expected response: <code className="rounded bg-slate-800 px-1.5 py-0.5">OK - Nexus Agent is running</code>
+            </p>
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-slate-300">Verify in Dashboard</h3>
+            <p className="text-sm text-slate-400">
+              Go to <Link href="/nodes" className="text-blue-400 hover:underline">Nodes page</Link> - your agent should appear as online within 30 seconds
+            </p>
           </div>
         </div>
       </div>
 
       {/* Troubleshooting */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-slate-50">
+      <div className="rounded-xl border border-orange-900/50 bg-orange-950/30 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-orange-50">
           🔧 Troubleshooting
         </h2>
-        <div className="space-y-4 text-sm">
+        <div className="space-y-3 text-sm text-orange-200">
           <div>
-            <h3 className="font-semibold text-slate-300">Node shows as Offline</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-slate-400">
-              <li>Check if agent process is running</li>
-              <li>Verify API URL and API Key are correct</li>
-              <li>Check firewall rules and network connectivity</li>
-              <li>Review agent logs for error messages</li>
-            </ul>
+            <p className="font-medium">DNS Verification Failed</p>
+            <p className="text-orange-300/70">
+              Make sure DNS is configured and propagated. Run: <code className="rounded bg-slate-900 px-1.5 py-0.5">dig {domain} +short</code>
+            </p>
           </div>
           <div>
-            <h3 className="font-semibold text-slate-300">Redirects not working</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-slate-400">
-              <li>Ensure links are created and active in dashboard</li>
-              <li>Check X-Nexus-Api-Key header is being sent to API</li>
-              <li>Verify agent can reach API server</li>
-              <li>Test direct connection: <code className="font-mono text-xs">curl localhost:9090/health</code></li>
-            </ul>
+            <p className="font-medium">Agent Not Appearing in Dashboard</p>
+            <p className="text-orange-300/70">
+              Check logs: <code className="rounded bg-slate-900 px-1.5 py-0.5">sudo journalctl -u nexuslink-agent -n 50</code>
+            </p>
+            <p className="text-orange-300/70">Common issues: Wrong API key, invalid token, network connectivity</p>
           </div>
           <div>
-            <h3 className="font-semibold text-slate-300">SSL Certificate Issues</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-slate-400">
-              <li>Ensure DNS is properly configured before running certbot</li>
-              <li>Check if port 80 and 443 are open</li>
-              <li>Verify nginx configuration syntax: <code className="font-mono text-xs">sudo nginx -t</code></li>
-            </ul>
+            <p className="font-medium">SSL Certificate Failed</p>
+            <p className="text-orange-300/70">
+              Port 80/443 must be open. Try manually: <code className="rounded bg-slate-900 px-1.5 py-0.5">sudo certbot --nginx -d {domain}</code>
+            </p>
           </div>
+        </div>
+      </div>
+
+      {/* Documentation Links */}
+      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+        <h2 className="mb-4 text-lg font-semibold text-slate-50">
+          📚 Additional Resources
+        </h2>
+        <div className="space-y-2 text-sm">
+          <a
+            href="https://github.com/afuzapratama/nexuslink-project/blob/main/nexuslink-agent/README.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-blue-400 hover:underline"
+          >
+            → Agent Installation Guide (GitHub)
+          </a>
+          <a
+            href="https://github.com/afuzapratama/nexuslink-project/blob/main/DOMAIN_VALIDATION_SECURITY.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-blue-400 hover:underline"
+          >
+            → Domain Validation Security Docs
+          </a>
+          <a
+            href="https://github.com/afuzapratama/nexuslink-project/blob/main/UPDATE_VPS_GUIDE.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-blue-400 hover:underline"
+          >
+            → Update & Maintenance Guide
+          </a>
+          <a
+            href="https://github.com/afuzapratama/nexuslink-project"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-blue-400 hover:underline"
+          >
+            → GitHub Repository
+          </a>
         </div>
       </div>
     </div>

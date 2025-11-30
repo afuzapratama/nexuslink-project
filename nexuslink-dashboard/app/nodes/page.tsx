@@ -142,15 +142,19 @@ export default function NodesPage() {
   function exampleCommand(token?: string) {
     const t = token ?? '<PASTE_TOKEN_HERE>';
     return [
-      '# Example: run Nexus Agent on your VPS',
-      'export NEXUS_API_BASE="https://YOUR-API-URL"',
-      'export NEXUS_AGENT_API_KEY="YOUR_API_KEY"',
-      `export NEXUS_NODE_TOKEN="${t}"`,
-      'export NEXUS_NODE_DOMAIN="go.yourdomain.com"',
-      'export NEXUS_NODE_REGION="ID-JKT"',
-      'export NEXUS_NODE_PUBLIC_URL="https://go.yourdomain.com"',
+      '# NexusLink Agent - One-Command Installer',
+      '# Run this on your VPS (Ubuntu 22.04+)',
       '',
-      'nexus-agent',
+      `curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \\`,
+      `  --domain=go.yourdomain.com \\`,
+      `  --api=https://api.htmlin.my.id \\`,
+      `  --key=YOUR_API_KEY \\`,
+      `  --token=${t} \\`,
+      `  --email=admin@yourdomain.com`,
+      '',
+      '# Installation takes ~3 minutes',
+      '# Includes: Go, Nginx, SSL, Agent binary, Systemd service',
+      '# Docs: github.com/afuzapratama/nexuslink-project',
     ].join('\n');
   }
 

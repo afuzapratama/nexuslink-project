@@ -119,7 +119,8 @@ echo -e "${YELLOW}⚠️  SAVE THIS KEY! You'll need it for Dashboard & Agents!$
 echo "$API_KEY" > ~/nexuslink-api-key.txt
 echo -e "Also saved to: ${BOLD}~/nexuslink-api-key.txt${NC}"
 echo ""
-read -p "Press Enter to continue..."
+echo -e "${GREEN}Press Enter to continue...${NC}"
+read -r </dev/tty
 
 # Step 7: Create ENV file
 echo -e "\n${BLUE}[7/12] Creating environment file...${NC}"
@@ -145,7 +146,8 @@ echo -e "     - Use AWS Access Key ID + Secret Key"
 echo -e "     - Works on any server"
 echo -e "     - Easier to setup"
 echo ""
-read -p "Enter choice (1 or 2): " DYNAMO_CHOICE
+echo -n "Enter choice (1 or 2): "
+read -r DYNAMO_CHOICE </dev/tty
 
 if [ "$DYNAMO_CHOICE" = "2" ]; then
     echo ""
@@ -156,10 +158,13 @@ if [ "$DYNAMO_CHOICE" = "2" ]; then
     echo -e "  3. Create access key → Copy Access Key ID & Secret"
     echo ""
     
-    read -p "Enter AWS Access Key ID: " AWS_KEY_ID
-    read -sp "Enter AWS Secret Access Key: " AWS_SECRET
+    echo -n "Enter AWS Access Key ID: "
+    read -r AWS_KEY_ID </dev/tty
+    echo -n "Enter AWS Secret Access Key (hidden): "
+    read -rs AWS_SECRET </dev/tty
     echo ""
-    read -p "Enter AWS Region (press Enter for ap-southeast-1): " AWS_REGION
+    echo -n "Enter AWS Region (press Enter for ap-southeast-1): "
+    read -r AWS_REGION </dev/tty
     AWS_REGION=${AWS_REGION:-ap-southeast-1}
     
     # Update ENV with credentials
@@ -332,12 +337,18 @@ fi
 
 # Step 12: Install Nginx & Certbot
 echo -e "\n${BLUE}[12/12] Installing Nginx & SSL...${NC}"
-sudo apt install -y nginx certbot python3-certbot-nginx
+echo -e "${YELLOW}⏳ Installing Nginx & Certbot (if not already installed)...${NC}"
+sudo apt install -y nginx certbot python3-certbot-nginx > /dev/null 2>&1
+echo -e "${GREEN}✓ Nginx & Certbot ready${NC}"
 
 # Create Nginx config
 echo -e "\n${BLUE}Configuring Nginx...${NC}"
-read -p "Enter your domain (e.g., api.htmlin.my.id): " DOMAIN
-read -p "Enter your email for SSL certificate: " EMAIL
+echo -e "${YELLOW}⚠️ Ensure DNS A record points to this server IP${NC}"
+echo ""
+echo -n "Enter your domain (e.g., api.htmlin.my.id): "
+read -r DOMAIN </dev/tty
+echo -n "Enter your email for SSL certificate: "
+read -r EMAIL </dev/tty
 
 sudo tee /etc/nginx/sites-available/nexuslink-api > /dev/null <<EOF
 server {
@@ -372,8 +383,10 @@ else
 fi
 
 # Get SSL certificate
-echo -e "\n${BLUE}Getting SSL certificate...${NC}"
+echo ""
+echo -e "${YELLOW}⏳ Obtaining SSL certificate (this may take 1-2 minutes)...${NC}"
 sudo certbot --nginx -d $DOMAIN --non-interactive --agree-tos -m $EMAIL
+echo -e "${GREEN}✓ SSL certificate obtained and configured${NC}"
 
 # Setup firewall
 echo -e "\n${BLUE}Configuring firewall...${NC}"

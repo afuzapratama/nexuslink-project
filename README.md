@@ -6,8 +6,9 @@
 
 ```
 nexuslink-project/
-├── nexuslink/              # Go Backend (API + Agent)
+├── nexuslink/              # Go Backend (API + full development)
 ├── nexuslink-dashboard/    # Next.js Dashboard
+├── nexuslink-agent/        # 🆕 Standalone Agent Installer (for CDN)
 ├── docs/                   # Historical documentation & summaries
 ├── ROADMAP.md              # Development roadmap
 ├── QUICK_START.md          # Quick start guide
@@ -17,7 +18,20 @@ nexuslink-project/
 
 ## 🚀 Quick Start
 
-### 1. Clone Repository
+### Production (Agents)
+Deploy production agents in 3 minutes with DNS auto-verification:
+```bash
+curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \
+  --domain=go.htmlin.my.id \
+  --api=https://api.htmlin.my.id \
+  --key=YOUR_API_KEY \
+  --token=YOUR_NODE_TOKEN \
+  --email=admin@example.com
+```
+
+**Perfect for:** Adding 20+ edge nodes globally with one command each!
+
+### Development
 ```bash
 git clone git@github.com:your-username/nexuslink-project.git
 cd nexuslink-project
@@ -52,6 +66,7 @@ npm run dev                       # Start dashboard (port 3000)
 - **[Quick Start Guide](QUICK_START.md)** - Development setup
 - **[Backend README](nexuslink/README.md)** - Go backend documentation
 - **[Dashboard README](nexuslink-dashboard/README.md)** - Next.js dashboard documentation
+- **[Agent Installer](nexuslink-agent/README.md)** - 🆕 One-command production deployment
 
 ### Production
 - **[Production Deployment](nexuslink/deployment/PRODUCTION_DEPLOYMENT.md)** - Complete production guide

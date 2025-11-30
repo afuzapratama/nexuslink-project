@@ -43,29 +43,54 @@ sudo apt install -y redis-server
 
 # Step 3: Configure Redis
 echo -e "\n${BLUE}[3/12] Configuring Redis...${NC}"
-echo -e "${YELLOW}⚠️  You need to set Redis password manually!${NC}"
-echo -e "1. Run: ${BOLD}sudo nano /etc/redis/redis.conf${NC}"
-echo -e "2. Find line: ${BOLD}# requirepass foobared${NC}"
-echo -e "3. Change to: ${BOLD}requirepass YOUR_STRONG_PASSWORD${NC}"
-echo -e "4. Save (Ctrl+O, Enter, Ctrl+X)"
-echo -e "5. Restart: ${BOLD}sudo systemctl restart redis-server${NC}"
-echo ""
-read -p "Press Enter after you've configured Redis password..."
 
-# Restart Redis
+# Generate strong Redis password
+REDIS_PASSWORD=$(openssl rand -hex 16)
+echo -e "${GREEN}Generated Redis Password:${NC} ${BOLD}$REDIS_PASSWORD${NC}"
+
+# Backup original config
+sudo cp /etc/redis/redis.conf /etc/redis/redis.conf.backup
+
+# Configure Redis password
+echo -e "${YELLOW}Configuring Redis with password...${NC}"
+if sudo grep -q "^requirepass" /etc/redis/redis.conf; then
+    # Password already set, update it
+    sudo sed -i "s/^requirepass .*/requirepass $REDIS_PASSWORD/" /etc/redis/redis.conf
+else
+    # No password set, add it (find commented line and replace)
+    if sudo grep -q "^# requirepass" /etc/redis/redis.conf; then
+        sudo sed -i "s/^# requirepass .*/requirepass $REDIS_PASSWORD/" /etc/redis/redis.conf
+    else
+        # Fallback: append at end
+        echo "requirepass $REDIS_PASSWORD" | sudo tee -a /etc/redis/redis.conf > /dev/null
+    fi
+fi
+
+# Also bind to localhost only (security)
+sudo sed -i 's/^bind .*/bind 127.0.0.1 ::1/' /etc/redis/redis.conf
+
+# Reload systemd and restart Redis
+sudo systemctl daemon-reload
 sudo systemctl restart redis-server
 sudo systemctl enable redis-server
 
-# Test Redis
+# Wait for Redis to start
+sleep 2
+
+# Test Redis connection
 echo -e "\n${BLUE}Testing Redis connection...${NC}"
-read -sp "Enter your Redis password: " REDIS_PASSWORD
-echo ""
-if redis-cli -a "$REDIS_PASSWORD" ping | grep -q "PONG"; then
+if redis-cli -a "$REDIS_PASSWORD" ping 2>/dev/null | grep -q "PONG"; then
     echo -e "${GREEN}✅ Redis connected successfully!${NC}"
 else
-    echo -e "${RED}❌ Redis connection failed! Check your password.${NC}"
+    echo -e "${RED}❌ Redis connection failed! Checking status...${NC}"
+    sudo systemctl status redis-server --no-pager
     exit 1
 fi
+
+# Save password to file for reference
+echo "$REDIS_PASSWORD" > ~/redis-password.txt
+chmod 600 ~/redis-password.txt
+echo -e "${YELLOW}Redis password saved to: ${BOLD}~/redis-password.txt${NC}"
 
 # Step 4: Install Go
 echo -e "\n${BLUE}[4/12] Installing Go...${NC}"

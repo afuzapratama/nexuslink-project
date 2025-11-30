@@ -7,11 +7,12 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/afuzapratama/nexuslink/internal/config"
+	nexusConfig "github.com/afuzapratama/nexuslink/internal/config"
 )
 
 var (
@@ -34,30 +35,67 @@ const (
 func Client() *dynamodb.Client {
 	once.Do(func() {
 		// Pastikan .env sudah diload
-		config.Init()
+		nexusConfig.Init()
 
-		endpoint := config.GetEnv("NEXUS_DYNAMO_ENDPOINT", "http://127.0.0.1:8000")
-		region := config.GetEnv("NEXUS_AWS_REGION", "ap-southeast-1")
-
-		creds := aws.NewCredentialsCache(
-			credentials.NewStaticCredentialsProvider("local", "local", ""),
-		)
-
-		resolver := aws.EndpointResolverWithOptionsFunc(
-			func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{
-					URL: endpoint,
-				}, nil
-			},
-		)
-
-		cfg := aws.Config{
-			Region:                      region,
-			Credentials:                 creds,
-			EndpointResolverWithOptions: resolver,
-		}
+		endpoint := nexusConfig.GetEnv("NEXUS_DYNAMO_ENDPOINT", "")
+		region := nexusConfig.GetEnv("NEXUS_AWS_REGION", "ap-southeast-1")
 
 		log.Printf("DynamoDB client init: endpoint=%s region=%s\n", endpoint, region)
+
+		// Build AWS config
+		var cfg aws.Config
+
+		if endpoint != "" {
+			// Development mode: Local DynamoDB
+			log.Println("Using local DynamoDB endpoint")
+			creds := aws.NewCredentialsCache(
+				credentials.NewStaticCredentialsProvider("local", "local", ""),
+			)
+
+			resolver := aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{
+						URL: endpoint,
+					}, nil
+				},
+			)
+
+			cfg = aws.Config{
+				Region:                      region,
+				Credentials:                 creds,
+				EndpointResolverWithOptions: resolver,
+			}
+		} else {
+			// Production mode: AWS DynamoDB
+			log.Println("Using AWS DynamoDB (production)")
+			
+			// Check for explicit credentials in ENV
+			accessKeyID := nexusConfig.GetEnv("AWS_ACCESS_KEY_ID", "")
+			secretAccessKey := nexusConfig.GetEnv("AWS_SECRET_ACCESS_KEY", "")
+
+			if accessKeyID != "" && secretAccessKey != "" {
+				// Use explicit credentials
+				log.Println("Using AWS credentials from environment variables")
+				cfg = aws.Config{
+					Region: region,
+					Credentials: aws.NewCredentialsCache(
+						credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""),
+					),
+				}
+			} else {
+				// Use default AWS credential chain (IAM role, ~/.aws/credentials, etc)
+				log.Println("Using AWS default credential chain (IAM role or ~/.aws/credentials)")
+				
+				// Load default config (akan pakai IAM role kalau di EC2)
+				ctx := context.Background()
+				defaultCfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+				if err != nil {
+					log.Fatalf("Failed to load AWS config: %v", err)
+				}
+				cfg = defaultCfg
+			}
+		}
+
 		client = dynamodb.NewFromConfig(cfg)
 	})
 

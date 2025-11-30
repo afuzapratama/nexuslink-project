@@ -7,7 +7,7 @@
 ## ⚡ Quick Install
 
 ```bash
-curl -fsSL https://cdn.yourdomain.com/install.sh | sudo bash -s -- \
+curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \
   --domain=go.htmlin.my.id \
   --api=https://api.htmlin.my.id \
   --key=your-api-key-here \

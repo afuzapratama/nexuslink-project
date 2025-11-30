@@ -18,7 +18,7 @@ nexuslink-project/
 
 ## 🚀 Quick Start
 
-### Production (Agents)
+### Production (Agents) - One Command Deployment! ⚡
 Deploy production agents in 3 minutes with DNS auto-verification:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \
@@ -29,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main
   --email=admin@example.com
 ```
 
-**Perfect for:** Adding 20+ edge nodes globally with one command each!
+**Perfect for:** Adding 20+ edge nodes globally with one command each! No SSH setup required!
 
 ### Development
 ```bash

@@ -6,7 +6,17 @@
 
 ## ⚡ Quick Start (Recommended)
 
-### Interactive Installation
+### Agent Installation (One Command!)
+```bash
+curl -fsSL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/install.sh | sudo bash -s -- \
+  --domain=go.htmlin.my.id \
+  --api=https://api.htmlin.my.id \
+  --key=YOUR_API_KEY \
+  --token=YOUR_NODE_TOKEN \
+  --email=admin@example.com
+```
+
+### Interactive Installation (Legacy)
 ```bash
 curl -sL https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/setup.sh | sudo bash
 ```

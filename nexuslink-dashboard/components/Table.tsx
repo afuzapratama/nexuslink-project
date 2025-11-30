@@ -63,10 +63,17 @@ export default function Table<T extends Record<string, any>>({
           return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
         }
 
-        if (aVal instanceof Date && bVal instanceof Date) {
-          return sortDir === 'asc'
-            ? aVal.getTime() - bVal.getTime()
-            : bVal.getTime() - aVal.getTime();
+        // Try to parse as dates for date string comparison
+        try {
+          const aDate = new Date(aVal as any);
+          const bDate = new Date(bVal as any);
+          if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+            return sortDir === 'asc'
+              ? aDate.getTime() - bDate.getTime()
+              : bDate.getTime() - aDate.getTime();
+          }
+        } catch {
+          // Not a date, continue to default
         }
 
         return 0;

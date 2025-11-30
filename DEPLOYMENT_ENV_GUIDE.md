@@ -107,12 +107,6 @@ NEXUS_REDIS_PORT=6379
 NEXUS_MAXMIND_DB_PATH=/opt/GeoLite2-City.mmdb
 
 # ========================================
-# Optional: Bot Detection
-# ========================================
-NEXUS_PROXYCHECK_API_KEY=
-NEXUS_IPQS_API_KEY=
-
-# ========================================
 # System
 # ========================================
 TZ=Asia/Jakarta

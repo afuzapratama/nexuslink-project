@@ -26,12 +26,12 @@ type Logger struct {
 
 // LogEntry represents a structured log entry
 type LogEntry struct {
-	Timestamp   string                 `json:"timestamp"`
-	Level       string                 `json:"level"`
-	Service     string                 `json:"service"`
-	Message     string                 `json:"message"`
-	Fields      map[string]interface{} `json:"fields,omitempty"`
-	Error       string                 `json:"error,omitempty"`
+	Timestamp string                 `json:"timestamp"`
+	Level     string                 `json:"level"`
+	Service   string                 `json:"service"`
+	Message   string                 `json:"message"`
+	Fields    map[string]interface{} `json:"fields,omitempty"`
+	Error     string                 `json:"error,omitempty"`
 }
 
 var defaultLogger *Logger

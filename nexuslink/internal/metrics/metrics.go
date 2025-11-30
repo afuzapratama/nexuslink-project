@@ -12,27 +12,27 @@ type Metrics struct {
 	mu sync.RWMutex
 
 	// Request metrics
-	RequestsTotal      map[string]int64  // by endpoint
-	RequestDuration    map[string][]int64 // by endpoint (milliseconds)
-	RequestErrors      map[string]int64  // by endpoint
-	
+	RequestsTotal   map[string]int64   // by endpoint
+	RequestDuration map[string][]int64 // by endpoint (milliseconds)
+	RequestErrors   map[string]int64   // by endpoint
+
 	// Link metrics
-	LinksTotal         int64
-	LinksActive        int64
-	RedirectsTotal     int64
-	RedirectsBlocked   int64
-	
+	LinksTotal       int64
+	LinksActive      int64
+	RedirectsTotal   int64
+	RedirectsBlocked int64
+
 	// Rate limit metrics
-	RateLimitHits      int64
-	RateLimitMisses    int64
-	
+	RateLimitHits   int64
+	RateLimitMisses int64
+
 	// Node metrics
-	NodesOnline        int64
-	NodesOffline       int64
-	
+	NodesOnline  int64
+	NodesOffline int64
+
 	// System metrics
-	StartTime          time.Time
-	LastRequestTime    time.Time
+	StartTime       time.Time
+	LastRequestTime time.Time
 }
 
 var (
@@ -207,7 +207,7 @@ func MetricsHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		w.WriteHeader(http.StatusOK)
-		
+
 		metrics := GetMetrics()
 		w.Write([]byte(metrics.GetPrometheusMetrics()))
 	}

@@ -18,17 +18,17 @@ func Init() {
 		// 1. .env.production (production deployment)
 		// 2. .env (local development)
 		// 3. OS environment only (fallback)
-		
+
 		if err := godotenv.Load(".env.production"); err == nil {
 			log.Println("✅ config: loaded .env.production")
 			return
 		}
-		
+
 		if err := godotenv.Load(".env"); err == nil {
 			log.Println("✅ config: loaded .env (development)")
 			return
 		}
-		
+
 		log.Println("⚠️  config: no .env file found, using OS environment only")
 	})
 }

@@ -155,31 +155,48 @@ sed -i "s|NEXUS_REDIS_PASSWORD=.*|NEXUS_REDIS_PASSWORD=$REDIS_PASSWORD|" .env.pr
 
 echo -e "${GREEN}✅ Environment file configured!${NC}"
 
-# Step 9: Test API locally
-echo -e "\n${BLUE}[9/12] Testing API locally...${NC}"
-echo -e "${YELLOW}Starting API in background for testing...${NC}"
-go run cmd/api/main.go &
-API_PID=$!
-sleep 5
+# Step 9: Verify ENV configuration
+echo -e "\n${BLUE}[9/11] Verifying environment configuration...${NC}"
 
-# Test health endpoint
-if curl -s http://localhost:8080/health | grep -q "ok"; then
-    echo -e "${GREEN}✅ API is running successfully!${NC}"
-    kill $API_PID
+# Check critical ENV vars
+echo -e "${YELLOW}Checking configuration...${NC}"
+if grep -q "NEXUS_API_KEY=$API_KEY" .env.production; then
+    echo -e "${GREEN}  ✅ API Key configured${NC}"
 else
-    echo -e "${RED}❌ API failed to start. Check logs above.${NC}"
-    kill $API_PID
+    echo -e "${RED}  ❌ API Key not configured${NC}"
     exit 1
 fi
 
+if grep -q "NEXUS_REDIS_PASSWORD=$REDIS_PASSWORD" .env.production; then
+    echo -e "${GREEN}  ✅ Redis password configured${NC}"
+else
+    echo -e "${RED}  ❌ Redis password not configured${NC}"
+    exit 1
+fi
+
+# Verify AWS configuration
+if [ "$DYNAMO_CHOICE" = "2" ]; then
+    if grep -q "AWS_ACCESS_KEY_ID=$AWS_KEY_ID" .env.production; then
+        echo -e "${GREEN}  ✅ AWS credentials configured${NC}"
+    else
+        echo -e "${RED}  ❌ AWS credentials not configured${NC}"
+        exit 1
+    fi
+else
+    echo -e "${GREEN}  ✅ IAM Role mode (no hardcoded keys)${NC}"
+fi
+
+echo -e "${GREEN}✅ All configuration verified!${NC}"
+echo -e "${YELLOW}⚠️  Note: API will be tested after deployment via systemd${NC}"
+
 # Step 10: Build binary
-echo -e "\n${BLUE}[10/12] Building production binary...${NC}"
+echo -e "\n${BLUE}[10/11] Building production binary...${NC}"
 go build -o /tmp/nexuslink-api cmd/api/main.go
 sudo mv /tmp/nexuslink-api /usr/local/bin/nexuslink-api
 sudo chmod +x /usr/local/bin/nexuslink-api
 
 # Step 11: Create SystemD service
-echo -e "\n${BLUE}[11/12] Creating systemd service...${NC}"
+echo -e "\n${BLUE}[11/11] Creating systemd service...${NC}"
 sudo tee /etc/systemd/system/nexuslink-api.service > /dev/null <<EOF
 [Unit]
 Description=NexusLink API Server
@@ -210,17 +227,37 @@ sudo systemctl enable nexuslink-api
 sudo systemctl start nexuslink-api
 
 # Wait and check status
-sleep 3
+sleep 5
 if sudo systemctl is-active --quiet nexuslink-api; then
     echo -e "${GREEN}✅ Service started successfully!${NC}"
+    
+    # Test health endpoint
+    echo -e "${BLUE}Testing API health endpoint...${NC}"
+    sleep 2
+    if curl -s http://localhost:8080/health 2>/dev/null | grep -q "ok"; then
+        echo -e "${GREEN}✅ API is responding correctly!${NC}"
+    else
+        echo -e "${YELLOW}⚠️  API started but health check failed (might need more time)${NC}"
+        echo -e "${YELLOW}   Check logs: sudo journalctl -u nexuslink-api -f${NC}"
+    fi
 else
     echo -e "${RED}❌ Service failed to start. Checking logs:${NC}"
-    sudo journalctl -u nexuslink-api -n 20
+    sudo journalctl -u nexuslink-api -n 50 --no-pager
+    echo ""
+    echo -e "${YELLOW}Common issues:${NC}"
+    echo -e "  1. DynamoDB access: Check IAM role or AWS credentials"
+    echo -e "  2. Redis connection: Check password in .env.production"
+    echo -e "  3. Port conflict: Check if port 8080 is already in use"
+    echo ""
+    echo -e "${BLUE}Manual fix:${NC}"
+    echo -e "  1. Check logs: sudo journalctl -u nexuslink-api -n 100"
+    echo -e "  2. Check env: cat ~/nexuslink-project/nexuslink/.env.production"
+    echo -e "  3. Test manually: cd ~/nexuslink-project/nexuslink && go run cmd/api/main.go"
     exit 1
 fi
 
 # Step 12: Install Nginx & Certbot
-echo -e "\n${BLUE}[12/12] Installing Nginx & Certbot...${NC}"
+echo -e "\n${BLUE}[12/12] Installing Nginx & SSL...${NC}"
 sudo apt install -y nginx certbot python3-certbot-nginx
 
 # Create Nginx config

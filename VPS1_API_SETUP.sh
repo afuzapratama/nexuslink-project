@@ -138,22 +138,42 @@ if [ "$DYNAMO_CHOICE" = "2" ]; then
     read -p "Enter AWS Access Key ID: " AWS_KEY_ID
     read -sp "Enter AWS Secret Access Key: " AWS_SECRET
     echo ""
+    read -p "Enter AWS Region (default: ap-southeast-1): " AWS_REGION
+    AWS_REGION=${AWS_REGION:-ap-southeast-1}
     
     # Update ENV with credentials
     sed -i "s|AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=$AWS_KEY_ID|" .env.production
     sed -i "s|AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=$AWS_SECRET|" .env.production
+    sed -i "s|NEXUS_AWS_REGION=.*|NEXUS_AWS_REGION=$AWS_REGION|" .env.production
+    
+    echo -e "${GREEN}✅ Using Access Keys${NC}"
 else
-    echo -e "${GREEN}✅ Using IAM Role (make sure it's attached to this EC2)${NC}"
+    echo ""
+    read -p "Enter AWS Region (default: ap-southeast-1): " AWS_REGION
+    AWS_REGION=${AWS_REGION:-ap-southeast-1}
+    
     # Comment out AWS credentials
     sed -i 's|^AWS_ACCESS_KEY_ID=|#AWS_ACCESS_KEY_ID=|' .env.production
     sed -i 's|^AWS_SECRET_ACCESS_KEY=|#AWS_SECRET_ACCESS_KEY=|' .env.production
+    sed -i "s|NEXUS_AWS_REGION=.*|NEXUS_AWS_REGION=$AWS_REGION|" .env.production
+    
+    echo -e "${GREEN}✅ Using IAM Role (make sure it's attached to this EC2)${NC}"
 fi
+
+# Ensure DynamoDB endpoint is empty (production = AWS DynamoDB)
+sed -i 's|^NEXUS_DYNAMO_ENDPOINT=.*|NEXUS_DYNAMO_ENDPOINT=|' .env.production
 
 # Update other ENV values
 sed -i "s|NEXUS_API_KEY=.*|NEXUS_API_KEY=$API_KEY|" .env.production
 sed -i "s|NEXUS_REDIS_PASSWORD=.*|NEXUS_REDIS_PASSWORD=$REDIS_PASSWORD|" .env.production
+sed -i "s|NEXUS_API_PORT=.*|NEXUS_API_PORT=8080|" .env.production
 
 echo -e "${GREEN}✅ Environment file configured!${NC}"
+echo ""
+echo -e "${BLUE}Configuration summary:${NC}"
+echo -e "  DynamoDB: ${BOLD}AWS DynamoDB (${AWS_REGION})${NC}"
+echo -e "  Redis: ${BOLD}localhost:6379${NC}"
+echo -e "  API Port: ${BOLD}8080${NC}"
 
 # Step 9: Verify ENV configuration
 echo -e "\n${BLUE}[9/11] Verifying environment configuration...${NC}"
@@ -184,6 +204,19 @@ if [ "$DYNAMO_CHOICE" = "2" ]; then
     fi
 else
     echo -e "${GREEN}  ✅ IAM Role mode (no hardcoded keys)${NC}"
+    echo -e "${YELLOW}  ⚠️  Make sure IAM role is attached to this EC2 instance!${NC}"
+fi
+
+# Verify DynamoDB endpoint is empty (production)
+if grep -q "^NEXUS_DYNAMO_ENDPOINT=$" .env.production || grep -q "^NEXUS_DYNAMO_ENDPOINT=\\s*$" .env.production; then
+    echo -e "${GREEN}  ✅ DynamoDB endpoint: AWS DynamoDB (${AWS_REGION})${NC}"
+else
+    CURRENT_ENDPOINT=$(grep "^NEXUS_DYNAMO_ENDPOINT=" .env.production | cut -d'=' -f2)
+    echo -e "${RED}  ❌ DynamoDB endpoint should be empty!${NC}"
+    echo -e "${RED}     Current: NEXUS_DYNAMO_ENDPOINT=$CURRENT_ENDPOINT${NC}"
+    echo -e "${YELLOW}     Fixing...${NC}"
+    sed -i 's|^NEXUS_DYNAMO_ENDPOINT=.*|NEXUS_DYNAMO_ENDPOINT=|' .env.production
+    echo -e "${GREEN}  ✅ Fixed: NEXUS_DYNAMO_ENDPOINT= (empty)${NC}"
 fi
 
 echo -e "${GREEN}✅ All configuration verified!${NC}"

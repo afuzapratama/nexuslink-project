@@ -164,12 +164,17 @@ After=network.target redis-server.service
 Type=simple
 User=ubuntu
 WorkingDirectory=$HOME/nexuslink-project/nexuslink
-EnvironmentFile=$HOME/nexuslink-project/nexuslink/.env.production
 ExecStart=/usr/local/bin/nexuslink-api
 Restart=always
 RestartSec=5
 StandardOutput=journal
 StandardError=journal
+
+# Security hardening
+PrivateTmp=yes
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=$HOME/nexuslink-project/nexuslink
 
 [Install]
 WantedBy=multi-user.target

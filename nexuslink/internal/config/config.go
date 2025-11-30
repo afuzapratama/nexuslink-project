@@ -11,14 +11,25 @@ import (
 var once sync.Once
 
 // Init akan dipanggil sekali di awal (di main API & Agent)
+// Priority: .env.production > .env > OS environment
 func Init() {
 	once.Do(func() {
-		// Load .env kalau ada. Kalau nggak ada, ya sudah, pakai env OS saja.
-		if err := godotenv.Load(".env"); err != nil {
-			log.Println("config: .env not found, using OS env only")
-		} else {
-			log.Println("config: .env loaded")
+		// Try loading in priority order:
+		// 1. .env.production (production deployment)
+		// 2. .env (local development)
+		// 3. OS environment only (fallback)
+		
+		if err := godotenv.Load(".env.production"); err == nil {
+			log.Println("✅ config: loaded .env.production")
+			return
 		}
+		
+		if err := godotenv.Load(".env"); err == nil {
+			log.Println("✅ config: loaded .env (development)")
+			return
+		}
+		
+		log.Println("⚠️  config: no .env file found, using OS environment only")
 	})
 }
 

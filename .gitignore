@@ -1,0 +1,42 @@
+# Testing & Debug Scripts
+tested-scripts/
+
+# Build artifacts
+*.o
+*.so
+*.a
+*.exe
+nexuslink/agent
+nexuslink/api
+nexuslink/nexuslink-agent
+nexuslink/nexuslink-api
+nexuslink/build/
+
+# Development files
+.env
+.env.local
+*.log
+
+# DynamoDB local data
+nexuslink/dynamodb-data/
+
+# Node.js
+node_modules/
+.next/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.orig

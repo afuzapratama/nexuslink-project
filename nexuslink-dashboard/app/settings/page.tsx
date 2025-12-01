@@ -229,8 +229,9 @@ export default function SettingsPage() {
                   className="peer sr-only"
                   checked={enableProxyCheck}
                   onChange={(e) => setEnableProxyCheck(e.target.checked)}
+                  aria-label="Enable ProxyCheck.io Integration"
                 />
-                <div className="peer h-6 w-11 rounded-full bg-slate-700 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-500"></div>
+                <div className="peer h-6 w-11 rounded-full bg-slate-700 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-500"></div>
               </label>
             </div>
 
@@ -251,7 +252,7 @@ export default function SettingsPage() {
                   <a
                     href="https://proxycheck.io/"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-sky-400 hover:underline"
                   >
                     proxycheck.io
@@ -278,8 +279,9 @@ export default function SettingsPage() {
                   className="peer sr-only"
                   checked={enableIpQualityScore}
                   onChange={(e) => setEnableIpQualityScore(e.target.checked)}
+                  aria-label="Enable IPQualityScore Integration"
                 />
-                <div className="peer h-6 w-11 rounded-full bg-slate-700 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-500"></div>
+                <div className="peer h-6 w-11 rounded-full bg-slate-700 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-sky-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-sky-500"></div>
               </label>
             </div>
 
@@ -300,7 +302,7 @@ export default function SettingsPage() {
                   <a
                     href="https://www.ipqualityscore.com/"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-sky-400 hover:underline"
                   >
                     ipqualityscore.com
@@ -337,6 +339,7 @@ export default function SettingsPage() {
                       value={ipLimit}
                       onChange={(e) => setIpLimit(parseInt(e.target.value) || 0)}
                       className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-sm text-slate-50 outline-none"
+                      aria-label="IP Limit (requests per minute)"
                       required
                     />
                     <p className="mt-1 text-xs text-slate-500">
@@ -355,6 +358,7 @@ export default function SettingsPage() {
                       value={linkLimit}
                       onChange={(e) => setLinkLimit(parseInt(e.target.value) || 0)}
                       className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-sm text-slate-50 outline-none"
+                      aria-label="Link Limit (requests per minute)"
                       required
                     />
                     <p className="mt-1 text-xs text-slate-500">
@@ -373,6 +377,7 @@ export default function SettingsPage() {
                       value={windowSeconds}
                       onChange={(e) => setWindowSeconds(parseInt(e.target.value) || 0)}
                       className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-sm text-slate-50 outline-none"
+                      aria-label="Window (seconds)"
                       required
                     />
                     <p className="mt-1 text-xs text-slate-500">

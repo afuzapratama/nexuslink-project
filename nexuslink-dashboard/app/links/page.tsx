@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent, useCallback } from 'react';
 import { useToast } from '@/components/Toast';
 import { LoadingSpinner } from '@/components/Loading';
 import { MultiSelect } from '@/components/MultiSelect';
@@ -102,7 +102,7 @@ export default function LinksPage() {
 
   
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -176,11 +176,11 @@ export default function LinksPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [currentPage, itemsPerPage]);
 
   useEffect(() => {
     loadData();
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, loadData]);
 
   // Helper function to reset form
   function resetForm() {
@@ -292,13 +292,6 @@ export default function LinksPage() {
       setSaving(false);
     }
   }
-
-function splitCsv(value: string): string[] {
-  return value
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
-}
 
   function getTotalHits(alias: string): number {
     return stats
@@ -445,14 +438,14 @@ function splitCsv(value: string): string[] {
     const group = groups.find(g => g.id === groupId);
     if (!group) return <span className="text-xs text-slate-500">Unknown</span>;
     
+    // Inline styles required for dynamic group colors
     return (
       <span 
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium border"
         style={{ 
           backgroundColor: `${group.color}20`,
           color: group.color,
-          borderColor: `${group.color}40`,
-          borderWidth: '1px'
+          borderColor: `${group.color}40`
         }}
       >
         <span>{group.icon}</span>
@@ -526,7 +519,7 @@ function splitCsv(value: string): string[] {
             )}
           </div>
 
-          <div className="flex-[2]">
+          <div className="flex-2">
             <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
               Target URL
             </label>
@@ -549,6 +542,7 @@ function splitCsv(value: string): string[] {
               className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-xs text-slate-50 outline-none"
               value={selectedNodeId}
               onChange={(e) => setSelectedNodeId(e.target.value)}
+              aria-label="Select Node (Domain)"
             >
               <option value="">Any node</option>
               {nodes.map((n) => {
@@ -572,6 +566,7 @@ function splitCsv(value: string): string[] {
               className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-xs text-slate-50 outline-none"
               value={selectedGroupId}
               onChange={(e) => setSelectedGroupId(e.target.value)}
+              aria-label="Select Group"
             >
               <option value="">No Group</option>
               {groups.map((g) => (
@@ -590,6 +585,7 @@ function splitCsv(value: string): string[] {
               className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-xs text-slate-50 outline-none"
               value={selectedDomain}
               onChange={(e) => setSelectedDomain(e.target.value)}
+              aria-label="Select Domain (optional)"
             >
               <option value="">All Domains</option>
               {getAllAvailableDomains().map((domain) => (
@@ -760,6 +756,7 @@ function splitCsv(value: string): string[] {
           className="h-8 rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-xs text-slate-50 outline-none"
           value={filterGroupId}
           onChange={(e) => setFilterGroupId(e.target.value)}
+          aria-label="Filter by Group"
         >
           <option value="">All Groups</option>
           {groups.map((g) => (
@@ -876,6 +873,7 @@ function splitCsv(value: string): string[] {
                       checked={selectedAliases.has(link.alias)}
                       onChange={() => toggleSelection(link.alias)}
                       className="h-4 w-4 rounded border-slate-600 bg-slate-950"
+                      aria-label={`Select ${link.alias}`}
                     />
                   </td>
                   <td className="px-4 py-2 font-mono text-xs text-slate-200">
@@ -885,8 +883,8 @@ function splitCsv(value: string): string[] {
   <a
     href={link.targetUrl}
     target="_blank"
-    rel="noreferrer"
-    title={link.targetUrl} // biar full URL muncul saat hover
+    rel="noopener noreferrer"
+    title={link.targetUrl}
     className="block max-w-[420px] truncate text-sky-400 hover:underline"
   >
     {link.targetUrl}
@@ -1126,6 +1124,7 @@ function splitCsv(value: string): string[] {
             </h2>
 
             <div className="flex flex-col items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/api/nexus/links/${encodeURIComponent(qrModalAlias)}/qr?size=256`}
                 alt={`QR code for ${qrModalAlias}`}

@@ -211,11 +211,7 @@ echo -e "${YELLOW}════════════════════�
 log_info "Installing required packages..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     wget curl git nginx certbot python3-certbot-nginx ufw \
-    redis-server build-essential > /dev/null 2>&1
-
-# Start Redis
-systemctl enable redis-server > /dev/null 2>&1
-systemctl start redis-server > /dev/null 2>&1
+    build-essential > /dev/null 2>&1
 
 log_success "Dependencies installed"
 
@@ -330,8 +326,6 @@ NEXUS_NODE_DOMAIN=$DOMAIN
 NEXUS_NODE_PUBLIC_URL=https://$DOMAIN
 NEXUS_NODE_NAME=$DOMAIN
 NEXUS_NODE_REGION=Auto-Detected
-NEXUS_REDIS_ADDR=127.0.0.1:6379
-NEXUS_REDIS_PASSWORD=
 NEXUS_DEBUG_IP=
 EOF
 

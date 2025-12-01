@@ -13,9 +13,6 @@ import (
 	"time"
 
 	"github.com/afuzapratama/nexuslink/internal/config"
-	"github.com/afuzapratama/nexuslink/internal/database"
-	"github.com/afuzapratama/nexuslink/internal/middleware"
-	"github.com/afuzapratama/nexuslink/internal/ratelimit"
 )
 
 type Link struct {
@@ -75,26 +72,20 @@ func main() {
 	// Start heartbeat loop
 	startHeartbeat(apiBase, apiKey, nodeName, nodeRegion, nodePublicURL)
 
-	// Initialize Redis client
-	redisClient := database.GetRedisClient()
-	limiter := ratelimit.NewLimiter(redisClient)
-	rateLimitConfig := middleware.DefaultRateLimitConfig()
-
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK - Nexus Agent is running"))
 	})
 
-	// Redirect handler with rate limiting: /r/{alias}
-	redirectHandlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Redirect handler WITHOUT local rate limiting
+	// Rate limiting is handled centrally by API server
+	mux.HandleFunc("/r/", func(w http.ResponseWriter, r *http.Request) {
 		redirectHandler(w, r, apiBase, apiKey)
 	})
-	rateLimitedHandler := middleware.RateLimitMiddleware(limiter, rateLimitConfig)(redirectHandlerFunc)
-	mux.Handle("/r/", rateLimitedHandler)
 
-	log.Printf("Nexus Agent listening on %s (API: %s, nodeID=%s, rate limit: %d/min per IP)\n",
-		addr, apiBase, currentNodeID, rateLimitConfig.IPLimit)
+	log.Printf("Nexus Agent listening on %s (API: %s, nodeID=%s)\n",
+		addr, apiBase, currentNodeID)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("agent server error: %v", err)
 	}

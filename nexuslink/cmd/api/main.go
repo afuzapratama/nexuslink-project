@@ -136,6 +136,18 @@ func main() {
 	// Resolver endpoint (migrated to handler)
 	mux.HandleFunc("/links/resolve", handler.WithAgentAuth(resolverHandler.HandleResolve))
 
+	// Countries endpoint - returns list of countries for dropdown
+	mux.HandleFunc("/countries", handler.WithAgentAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		countries := util.GetAllCountries()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(countries)
+	}))
+
 	// ======== TODO: MIGRATE THESE TO HANDLERS LATER ========
 
 	// Analytics endpoints
@@ -296,7 +308,7 @@ func main() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Jika sudah ada node dengan domain yang sama DAN nodeID-nya sudah format UUID, pakai yang lama
 		// Jika nodeID masih format lama (node-domain.com), generate UUID baru (migration)
 		for _, n := range existingNodes {

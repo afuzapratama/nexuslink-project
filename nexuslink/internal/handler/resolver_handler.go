@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/afuzapratama/nexuslink/internal/geoip"
 	"github.com/afuzapratama/nexuslink/internal/ipcheck"
 	"github.com/afuzapratama/nexuslink/internal/models"
 	"github.com/afuzapratama/nexuslink/internal/repository"
@@ -308,6 +309,14 @@ func (h *ResolverHandler) HandleResolve(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	// Fallback to MaxMind GeoIP if country not set from IP quality checks
+	if clickEvent.Country == "" {
+		countryCode, city := geoip.Lookup(ip)
+		clickEvent.Country = countryCode
+		clickEvent.City = city
+		log.Printf("GeoIP lookup: ip=%s, country=%s, city=%s", ip, countryCode, city)
+	}
+
 	// Handle blocking
 	if blocked {
 		log.Printf("Traffic blocked: ip=%s, reason=%s", ip, blockReason)
@@ -372,6 +381,23 @@ func (h *ResolverHandler) HandleResolve(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		http.Error(w, "browser not allowed", http.StatusForbidden)
+		h.clickRepo.LogClick(r.Context(), clickEvent)
+		return
+	}
+
+	// Check country restriction
+	if len(link.AllowedCountries) > 0 && !contains(link.AllowedCountries, clickEvent.Country) {
+		log.Printf("Country mismatch: alias=%s, got=%s, allowed=%v", alias, clickEvent.Country, link.AllowedCountries)
+		if strings.TrimSpace(link.FallbackURL) != "" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"target": link.FallbackURL,
+				"reason": "country_not_allowed",
+			})
+			h.clickRepo.LogClick(r.Context(), clickEvent)
+			return
+		}
+		http.Error(w, "country not allowed", http.StatusForbidden)
 		h.clickRepo.LogClick(r.Context(), clickEvent)
 		return
 	}
@@ -452,9 +478,9 @@ func containsOS(allowedOS []string, detectedOS string) bool {
 	if detectedOS == "" {
 		return false
 	}
-	
+
 	detectedLower := strings.ToLower(detectedOS)
-	
+
 	for _, allowed := range allowedOS {
 		allowedLower := strings.ToLower(allowed)
 		// Check if detected OS contains allowed OS name

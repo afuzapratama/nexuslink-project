@@ -332,9 +332,16 @@ func redirectHandler(w http.ResponseWriter, r *http.Request, apiBase, apiKey str
 	}
 
 	// ambil info visitor (IP, UA, referer)
-	visitorIP := r.RemoteAddr
-	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		visitorIP = host
+	// Prioritas: X-Real-IP header (from nginx/proxy) > X-Forwarded-For > RemoteAddr
+	visitorIP := r.Header.Get("X-Real-IP")
+	if visitorIP == "" {
+		visitorIP = r.Header.Get("X-Forwarded-For")
+		if visitorIP == "" {
+			visitorIP = r.RemoteAddr
+			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+				visitorIP = host
+			}
+		}
 	}
 
 	// DEV-ONLY: override IP pakai env kalau diset

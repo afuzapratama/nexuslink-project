@@ -14,9 +14,10 @@ type Link struct {
 	// --- NEW: aturan akses berbasis UA/IP ---
 
 	// Allow-list; kalau kosong berarti bebas
-	AllowedOS       []string `json:"allowedOs,omitempty" dynamodbav:"allowedOs,omitempty"`
-	AllowedDevices  []string `json:"allowedDevices,omitempty" dynamodbav:"allowedDevices,omitempty"`
-	AllowedBrowsers []string `json:"allowedBrowsers,omitempty" dynamodbav:"allowedBrowsers,omitempty"`
+	AllowedOS        []string `json:"allowedOs,omitempty" dynamodbav:"allowedOs,omitempty"`
+	AllowedDevices   []string `json:"allowedDevices,omitempty" dynamodbav:"allowedDevices,omitempty"`
+	AllowedBrowsers  []string `json:"allowedBrowsers,omitempty" dynamodbav:"allowedBrowsers,omitempty"`
+	AllowedCountries []string `json:"allowedCountries,omitempty" dynamodbav:"allowedCountries,omitempty"` // ISO country codes (e.g., ["US", "ID", "SG"])
 
 	// Kalau true dan UA terdeteksi bot → dianggap mismatch
 	BlockBots bool `json:"blockBots,omitempty" dynamodbav:"blockBots,omitempty"`

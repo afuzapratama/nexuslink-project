@@ -109,15 +109,16 @@ func (h *LinkHandler) createLink(w http.ResponseWriter, r *http.Request) {
 		GroupID   string `json:"groupId"`
 		Domain    string `json:"domain"`
 
-		AllowedOS       []string `json:"allowedOs"`
-		AllowedDevices  []string `json:"allowedDevices"`
-		AllowedBrowsers []string `json:"allowedBrowsers"`
-		BlockBots       bool     `json:"blockBots"`
-		FallbackURL     string   `json:"fallbackUrl"`
-		ExpiresAt       *string  `json:"expiresAt"`
-		MaxClicks       *int     `json:"maxClicks"`
-		ActiveFrom      *string  `json:"activeFrom"`
-		ActiveUntil     *string  `json:"activeUntil"`
+		AllowedOS        []string `json:"allowedOs"`
+		AllowedDevices   []string `json:"allowedDevices"`
+		AllowedBrowsers  []string `json:"allowedBrowsers"`
+		AllowedCountries []string `json:"allowedCountries"`
+		BlockBots        bool     `json:"blockBots"`
+		FallbackURL      string   `json:"fallbackUrl"`
+		ExpiresAt        *string  `json:"expiresAt"`
+		MaxClicks        *int     `json:"maxClicks"`
+		ActiveFrom       *string  `json:"activeFrom"`
+		ActiveUntil      *string  `json:"activeUntil"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -140,12 +141,16 @@ func (h *LinkHandler) createLink(w http.ResponseWriter, r *http.Request) {
 		GroupID:   strings.TrimSpace(input.GroupID),
 		Domain:    strings.TrimSpace(input.Domain),
 
-		AllowedOS:       input.AllowedOS,
-		AllowedDevices:  input.AllowedDevices,
-		AllowedBrowsers: input.AllowedBrowsers,
-		BlockBots:       input.BlockBots,
-		FallbackURL:     strings.TrimSpace(input.FallbackURL),
+		AllowedOS:        input.AllowedOS,
+		AllowedDevices:   input.AllowedDevices,
+		AllowedBrowsers:  input.AllowedBrowsers,
+		AllowedCountries: input.AllowedCountries,
+		BlockBots:        input.BlockBots,
+		FallbackURL:      strings.TrimSpace(input.FallbackURL),
 	}
+
+	log.Printf("Creating link: alias=%s, allowedCountries=%v, len=%d", alias, input.AllowedCountries, len(input.AllowedCountries))
+	log.Printf("Link struct allowedCountries=%v", link.AllowedCountries)
 
 	// Parse expiration
 	if input.ExpiresAt != nil && *input.ExpiresAt != "" {
@@ -429,19 +434,20 @@ func (h *LinkHandler) updateLink(w http.ResponseWriter, r *http.Request, alias s
 
 	// Parse update request
 	var input struct {
-		TargetURL       string   `json:"targetUrl"`
-		NodeID          string   `json:"nodeId"`
-		GroupID         string   `json:"groupId"`
-		Domain          string   `json:"domain"`
-		AllowedOS       []string `json:"allowedOs"`
-		AllowedDevices  []string `json:"allowedDevices"`
-		AllowedBrowsers []string `json:"allowedBrowsers"`
-		BlockBots       bool     `json:"blockBots"`
-		FallbackURL     string   `json:"fallbackUrl"`
-		ExpiresAt       *string  `json:"expiresAt"`
-		MaxClicks       *int     `json:"maxClicks"`
-		ActiveFrom      *string  `json:"activeFrom"`
-		ActiveUntil     *string  `json:"activeUntil"`
+		TargetURL        string   `json:"targetUrl"`
+		NodeID           string   `json:"nodeId"`
+		GroupID          string   `json:"groupId"`
+		Domain           string   `json:"domain"`
+		AllowedOS        []string `json:"allowedOs"`
+		AllowedDevices   []string `json:"allowedDevices"`
+		AllowedBrowsers  []string `json:"allowedBrowsers"`
+		AllowedCountries []string `json:"allowedCountries"`
+		BlockBots        bool     `json:"blockBots"`
+		FallbackURL      string   `json:"fallbackUrl"`
+		ExpiresAt        *string  `json:"expiresAt"`
+		MaxClicks        *int     `json:"maxClicks"`
+		ActiveFrom       *string  `json:"activeFrom"`
+		ActiveUntil      *string  `json:"activeUntil"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -463,6 +469,7 @@ func (h *LinkHandler) updateLink(w http.ResponseWriter, r *http.Request, alias s
 	existingLink.AllowedOS = input.AllowedOS
 	existingLink.AllowedDevices = input.AllowedDevices
 	existingLink.AllowedBrowsers = input.AllowedBrowsers
+	existingLink.AllowedCountries = input.AllowedCountries
 	existingLink.BlockBots = input.BlockBots
 	existingLink.FallbackURL = strings.TrimSpace(input.FallbackURL)
 

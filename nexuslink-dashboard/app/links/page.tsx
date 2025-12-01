@@ -18,6 +18,7 @@ type LinkItem = {
   allowedOs?: string[];
   allowedDevices?: string[];
   allowedBrowsers?: string[];
+  allowedCountries?: string[];
   blockBots?: boolean;
   fallbackUrl?: string;
 };
@@ -51,12 +52,18 @@ type LinkGroup = {
   sortOrder: number;
 };
 
+type Country = {
+  code: string;
+  name: string;
+};
+
 export default function LinksPage() {
   const { showToast } = useToast();
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [stats, setStats] = useState<LinkStat[]>([]);
   const [nodes, setNodes] = useState<NodeItem[]>([]);
   const [groups, setGroups] = useState<LinkGroup[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterGroupId, setFilterGroupId] = useState<string>('');
   
@@ -83,6 +90,7 @@ export default function LinksPage() {
   const [allowedOs, setAllowedOs] = useState<string[]>([]);
   const [allowedDevices, setAllowedDevices] = useState<string[]>([]);
   const [allowedBrowsers, setAllowedBrowsers] = useState<string[]>([]);
+  const [allowedCountries, setAllowedCountries] = useState<string[]>([]);
   const [fallbackUrl, setFallbackUrl] = useState('');
   const [blockBots, setBlockBots] = useState(false);
    const [expiresAt, setExpiresAt] = useState('');
@@ -98,11 +106,12 @@ export default function LinksPage() {
     setLoading(true);
     setError(null);
     try {
-      const [linksRes, statsRes, nodesRes, groupsRes] = await Promise.all([
+      const [linksRes, statsRes, nodesRes, groupsRes, countriesRes] = await Promise.all([
         fetch(`/api/nexus/links?page=${currentPage}&limit=${itemsPerPage}`, { cache: 'no-store' }),
         fetch('/api/nexus/link-stats', { cache: 'no-store' }),
         fetch('/api/nexus/nodes', { cache: 'no-store' }),
         fetch('/api/nexus/groups', { cache: 'no-store' }),
+        fetch('/api/nexus/countries', { cache: 'no-store' }),
       ]);
 
       if (!linksRes.ok) {
@@ -150,6 +159,14 @@ export default function LinksPage() {
         const groupsData: LinkGroup[] = await groupsRes.json();
         setGroups(groupsData);
       }
+
+      if (!countriesRes.ok) {
+        console.error('Failed to load countries', await countriesRes.text());
+        setCountries([]);
+      } else {
+        const countriesData: Country[] = await countriesRes.json();
+        setCountries(countriesData);
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to load links');
@@ -175,6 +192,7 @@ export default function LinksPage() {
     setAllowedOs([]);
     setAllowedDevices([]);
     setAllowedBrowsers([]);
+    setAllowedCountries([]);
     setFallbackUrl('');
     setBlockBots(false);
     setExpiresAt('');
@@ -195,6 +213,7 @@ export default function LinksPage() {
     setAllowedOs(link.allowedOs || []);
     setAllowedDevices(link.allowedDevices || []);
     setAllowedBrowsers(link.allowedBrowsers || []);
+    setAllowedCountries(link.allowedCountries || []);
     setFallbackUrl(link.fallbackUrl || '');
     setBlockBots(link.blockBots || false);
     setEditingAlias(link.alias);
@@ -223,6 +242,7 @@ export default function LinksPage() {
         allowedOs: allowedOs,
         allowedDevices: allowedDevices,
         allowedBrowsers: allowedBrowsers,
+        allowedCountries: allowedCountries,
         fallbackUrl: fallbackUrl.trim(),
         blockBots,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
@@ -620,6 +640,13 @@ function splitCsv(value: string): string[] {
               selected={allowedBrowsers}
               onChange={setAllowedBrowsers}
               placeholder="All browsers allowed"
+            />
+            <MultiSelect
+              label="Allowed Countries"
+              options={countries.map(c => ({ value: c.code, label: c.name }))}
+              selected={allowedCountries}
+              onChange={setAllowedCountries}
+              placeholder="All countries allowed"
             />
           </div>
 

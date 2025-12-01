@@ -100,6 +100,23 @@ func (r *NodeRepository) GetByID(ctx context.Context, id string) (*models.Node, 
 	return &node, nil
 }
 
+// Delete removes a node from the database
+func (r *NodeRepository) Delete(ctx context.Context, id string) error {
+	key, err := attributevalue.MarshalMap(map[string]string{
+		"id": id,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = r.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(database.NodesTableName),
+		Key:       key,
+	})
+
+	return err
+}
+
 // AddDomain adds a new domain to a node's domain list
 func (r *NodeRepository) AddDomain(ctx context.Context, nodeID, domain string) error {
 	node, err := r.GetByID(ctx, nodeID)

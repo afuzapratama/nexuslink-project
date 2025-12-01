@@ -377,25 +377,42 @@ func main() {
 		nodeID := parts[0]
 
 		// GET /admin/nodes/:id - Get single node details
+		// DELETE /admin/nodes/:id - Delete node
 		if len(parts) == 1 {
-			if r.Method != http.MethodGet {
+			switch r.Method {
+			case http.MethodGet:
+				node, err := nodeRepo.GetByID(r.Context(), nodeID)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				if node == nil {
+					http.Error(w, "node not found", http.StatusNotFound)
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(node)
+				return
+
+			case http.MethodDelete:
+				// Delete node from database
+				if err := nodeRepo.Delete(r.Context(), nodeID); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{
+					"message": "node deleted successfully",
+					"nodeId":  nodeID,
+				})
+				return
+
+			default:
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				return
 			}
-
-			node, err := nodeRepo.GetByID(r.Context(), nodeID)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			if node == nil {
-				http.Error(w, "node not found", http.StatusNotFound)
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(node)
-			return
 		}
 
 		// Domain management: /admin/nodes/:id/domains

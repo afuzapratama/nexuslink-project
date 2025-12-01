@@ -332,14 +332,17 @@ func redirectHandler(w http.ResponseWriter, r *http.Request, apiBase, apiKey str
 	}
 
 	// ambil info visitor (IP, UA, referer)
-	// Prioritas: X-Real-IP header (from nginx/proxy) > X-Forwarded-For > RemoteAddr
-	visitorIP := r.Header.Get("X-Real-IP")
+	// Prioritas: CF-Connecting-IP (Cloudflare) > X-Real-IP (nginx/proxy) > X-Forwarded-For > RemoteAddr
+	visitorIP := r.Header.Get("CF-Connecting-IP")
 	if visitorIP == "" {
-		visitorIP = r.Header.Get("X-Forwarded-For")
+		visitorIP = r.Header.Get("X-Real-IP")
 		if visitorIP == "" {
-			visitorIP = r.RemoteAddr
-			if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-				visitorIP = host
+			visitorIP = r.Header.Get("X-Forwarded-For")
+			if visitorIP == "" {
+				visitorIP = r.RemoteAddr
+				if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+					visitorIP = host
+				}
 			}
 		}
 	}

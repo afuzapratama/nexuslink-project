@@ -16,7 +16,9 @@ import (
 )
 
 type Link struct {
-	TargetURL string `json:"targetUrl"`
+	TargetURL string `json:"targetUrl"` // Normal response
+	Target    string `json:"target"`    // Fallback response (browser/os/device not allowed)
+	Reason    string `json:"reason"`    // Reason for fallback
 }
 
 type Node struct {
@@ -407,10 +409,20 @@ func redirectHandler(w http.ResponseWriter, r *http.Request, apiBase, apiKey str
 		return
 	}
 
-	if link.TargetURL == "" {
+	// Determine target URL (either normal or fallback)
+	targetURL := link.TargetURL
+	if targetURL == "" && link.Target != "" {
+		// Fallback response (browser/os/device not allowed)
+		targetURL = link.Target
+		if link.Reason != "" {
+			log.Printf("Using fallback URL for %s: reason=%s, target=%s", alias, link.Reason, targetURL)
+		}
+	}
+
+	if targetURL == "" {
 		http.Error(w, "no target url", http.StatusBadGateway)
 		return
 	}
 
-	http.Redirect(w, r, link.TargetURL, http.StatusFound)
+	http.Redirect(w, r, targetURL, http.StatusFound)
 }

@@ -50,28 +50,30 @@ func RateLimitMiddleware(limiter *ratelimit.Limiter, config RateLimitConfig) fun
 				}
 			}
 
-			// Check IP rate limit
-			ipKey := fmt.Sprintf("ip:%s", ip)
-			allowed, remaining, resetAt, err := limiter.Allow(ctx, ipKey, config.IPLimit, config.Window)
+		// Check IP rate limit
+		ipKey := fmt.Sprintf("ip:%s", ip)
+		allowed, remaining, resetAt, err := limiter.Allow(ctx, ipKey, config.IPLimit, config.Window)
 
-			// Set rate limit headers
-			w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", config.IPLimit))
-			w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", remaining))
-			w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", resetAt.Unix()))
-
-			if err != nil {
-				// Log error but don't block request
-				http.Error(w, "Rate limit check failed", http.StatusInternalServerError)
-				return
-			}
-
-			if !allowed {
-				w.Header().Set("Retry-After", fmt.Sprintf("%d", int(config.Window.Seconds())))
-				http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
-				return
-			}
-
+		if err != nil {
+			// Redis connection failed - allow request but log error
+			// This prevents rate limit from blocking service when Redis is down
+			w.Header().Set("X-RateLimit-Status", "degraded")
 			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Set rate limit headers
+		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", config.IPLimit))
+		w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", remaining))
+		w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", resetAt.Unix()))
+
+		if !allowed {
+			w.Header().Set("Retry-After", fmt.Sprintf("%d", int(config.Window.Seconds())))
+			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+
+		next.ServeHTTP(w, r)
 		})
 	}
 }

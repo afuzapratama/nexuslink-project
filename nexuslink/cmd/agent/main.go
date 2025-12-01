@@ -152,10 +152,13 @@ func registerNodeWithToken(apiBase, apiKey, token, domain, region, publicURL, na
 // refreshAllowedDomains fetches current node info from API to get updated domain list
 func refreshAllowedDomains(apiBase, apiKey string) {
 	if currentNodeID == "" {
+		log.Printf("refreshAllowedDomains: skipped (currentNodeID is empty)")
 		return
 	}
 
 	urlStr := fmt.Sprintf("%s/admin/nodes/%s", apiBase, url.QueryEscape(currentNodeID))
+	log.Printf("refreshAllowedDomains: fetching %s", urlStr)
+	
 	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 	if err != nil {
 		log.Printf("refreshAllowedDomains: error creating request: %v", err)
@@ -174,7 +177,8 @@ func refreshAllowedDomains(apiBase, apiKey string) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("refreshAllowedDomains: unexpected status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("refreshAllowedDomains: unexpected status %d, body: %s", resp.StatusCode, string(body))
 		return
 	}
 

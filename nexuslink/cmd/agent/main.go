@@ -158,7 +158,7 @@ func refreshAllowedDomains(apiBase, apiKey string) {
 
 	urlStr := fmt.Sprintf("%s/admin/nodes/%s", apiBase, url.QueryEscape(currentNodeID))
 	log.Printf("refreshAllowedDomains: fetching %s", urlStr)
-	
+
 	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 	if err != nil {
 		log.Printf("refreshAllowedDomains: error creating request: %v", err)

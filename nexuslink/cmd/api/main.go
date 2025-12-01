@@ -287,8 +287,23 @@ func main() {
 			return
 		}
 
-		// bentuk nodeId sederhana dari domain (bisa diubah nanti)
-		nodeID := "node-" + body.Domain
+		// Generate UUID untuk nodeID (tidak pakai domain karena domain ada titik/dot yang bikin routing error)
+		nodeID := uuid.New().String()
+
+		// Cek apakah node dengan domain ini sudah ada
+		existingNodes, err := nodeRepo.List(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		
+		// Jika sudah ada node dengan domain yang sama, pakai nodeID yang lama
+		for _, n := range existingNodes {
+			if n.PublicURL == body.PublicURL || strings.Contains(n.PublicURL, body.Domain) {
+				nodeID = n.ID
+				break
+			}
+		}
 
 		node := &models.Node{
 			ID:           nodeID,

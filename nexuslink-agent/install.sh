@@ -306,11 +306,75 @@ if [ ! -x "$INSTALL_DIR/agent" ]; then
 fi
 
 # ============================================
-# STEP 7: Create Configuration
+# STEP 7: Validate API Key & Token
 # ============================================
 echo ""
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}[7/10] Creating Configuration${NC}"
+echo -e "${YELLOW}[7/10] Validating API Credentials${NC}"
+echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
+
+log_info "Testing API key..."
+API_TEST=$(curl -4 -s -w "\n%{http_code}" -X GET "$API_URL/admin/nodes" \
+    -H "X-Nexus-Api-Key: $API_KEY" 2>/dev/null)
+
+HTTP_CODE=$(echo "$API_TEST" | tail -n 1)
+
+if [ "$HTTP_CODE" = "200" ]; then
+    log_success "API key valid ✓"
+elif [ "$HTTP_CODE" = "401" ]; then
+    log_error "Invalid API key!"
+    echo ""
+    echo "The API key you provided is incorrect."
+    echo "Please check your API key from the dashboard:"
+    echo "  Dashboard → Settings → API Configuration"
+    echo ""
+    exit 1
+elif [ -z "$HTTP_CODE" ]; then
+    log_error "Cannot connect to API server: $API_URL"
+    echo ""
+    echo "Please verify:"
+    echo "  1. API server is running"
+    echo "  2. URL is correct: $API_URL"
+    echo "  3. Server has internet connection"
+    echo ""
+    exit 1
+else
+    log_warning "API returned status $HTTP_CODE (continuing anyway)"
+fi
+
+log_info "Testing node token..."
+TOKEN_TEST=$(curl -4 -s -w "\n%{http_code}" -X POST "$API_URL/nodes/register" \
+    -H "Content-Type: application/json" \
+    -H "X-Nexus-Api-Key: $API_KEY" \
+    -d "{\"token\":\"$NODE_TOKEN\",\"domain\":\"$DOMAIN\",\"publicUrl\":\"https://$DOMAIN\"}" 2>/dev/null)
+
+TOKEN_CODE=$(echo "$TOKEN_TEST" | tail -n 1)
+TOKEN_BODY=$(echo "$TOKEN_TEST" | head -n -1)
+
+if [ "$TOKEN_CODE" = "200" ] || [ "$TOKEN_CODE" = "201" ]; then
+    log_success "Node token valid ✓"
+elif [ "$TOKEN_CODE" = "400" ] && echo "$TOKEN_BODY" | grep -q "already registered"; then
+    log_success "Node token valid (already registered) ✓"
+elif [ "$TOKEN_CODE" = "401" ] || [ "$TOKEN_CODE" = "403" ]; then
+    log_error "Invalid node token!"
+    echo ""
+    echo "The node token you provided is incorrect or expired."
+    echo "Please generate a new token from the dashboard:"
+    echo "  Dashboard → Nodes → Generate Token"
+    echo ""
+    exit 1
+else
+    log_warning "Token validation returned status $TOKEN_CODE (continuing anyway)"
+fi
+
+sleep 1
+
+# ============================================
+# STEP 8: Create Configuration
+# ============================================
+echo ""
+echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
+echo -e "${YELLOW}[8/10] Creating Configuration${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 cat > $INSTALL_DIR/.env << EOF
@@ -334,11 +398,11 @@ chown -R nexus:nexus $INSTALL_DIR
 log_success "Configuration created"
 
 # ============================================
-# STEP 8: Create Systemd Service
+# STEP 9: Create Systemd Service
 # ============================================
 echo ""
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}[8/10] Setting Up Systemd Service${NC}"
+echo -e "${YELLOW}[9/10] Setting Up Systemd Service${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 cat > /etc/systemd/system/nexuslink-agent.service << EOF
@@ -379,11 +443,11 @@ systemctl enable nexuslink-agent > /dev/null 2>&1
 log_success "Systemd service configured"
 
 # ============================================
-# STEP 9: Configure Nginx + SSL
+# STEP 10: Configure Nginx + SSL
 # ============================================
 echo ""
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}[9/10] Configuring Nginx & SSL${NC}"
+echo -e "${YELLOW}[10/10] Configuring Nginx & SSL${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 # Remove default site
@@ -458,11 +522,11 @@ else
 fi
 
 # ============================================
-# STEP 10: Final Verification
+# STEP 11: Final Verification
 # ============================================
 echo ""
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}[10/10] Final Verification${NC}"
+echo -e "${YELLOW}[11/11] Final Verification${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 # Test local health

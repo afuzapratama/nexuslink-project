@@ -223,13 +223,31 @@ echo -e "${YELLOW}[4/10] Installing Go${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 if ! command -v go &> /dev/null; then
-    log_info "Downloading Go 1.23..."
+    log_info "Downloading Go 1.23.3..."
     cd /tmp
-    wget -q https://go.dev/dl/go1.23.3.linux-amd64.tar.gz
+    
+    # Try primary mirror (go.dev)
+    if wget --timeout=30 --tries=2 -q https://go.dev/dl/go1.23.3.linux-amd64.tar.gz 2>/dev/null; then
+        log_success "Downloaded from go.dev"
+    # Try Google mirror
+    elif wget --timeout=30 --tries=2 -q https://golang.google.cn/dl/go1.23.3.linux-amd64.tar.gz 2>/dev/null; then
+        log_success "Downloaded from golang.google.cn"
+    # Try GitHub mirror
+    elif wget --timeout=30 --tries=2 -q https://github.com/golang/go/releases/download/go1.23.3/go1.23.3.linux-amd64.tar.gz 2>/dev/null; then
+        log_success "Downloaded from GitHub"
+    else
+        log_error "Failed to download Go from all mirrors"
+        echo -e "${RED}Please check your internet connection or try manually:${NC}"
+        echo -e "${BLUE}wget https://go.dev/dl/go1.23.3.linux-amd64.tar.gz${NC}"
+        exit 1
+    fi
+    
+    log_info "Extracting Go..."
     rm -rf /usr/local/go
     tar -C /usr/local -xzf go1.23.3.linux-amd64.tar.gz
     export PATH=$PATH:/usr/local/go/bin
     echo 'export PATH=$PATH:/usr/local/go/bin' > /etc/profile.d/go.sh
+    rm -f go1.23.3.linux-amd64.tar.gz
     log_success "Go $(go version | awk '{print $3}') installed"
 else
     log_success "Go already installed: $(go version | awk '{print $3}')"

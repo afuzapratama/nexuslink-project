@@ -326,7 +326,9 @@ func (h *ResolverHandler) HandleResolve(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Check OS/Device/Browser rules
-	if len(link.AllowedOS) > 0 && !contains(link.AllowedOS, osName) {
+	// For OS, use contains check because parser returns "Windows 10", "Windows 11", etc.
+	// but filter is just "Windows"
+	if len(link.AllowedOS) > 0 && !containsOS(link.AllowedOS, osName) {
 		log.Printf("OS mismatch: alias=%s, got=%s, allowed=%v", alias, osName, link.AllowedOS)
 		if strings.TrimSpace(link.FallbackURL) != "" {
 			w.Header().Set("Content-Type", "application/json")
@@ -438,6 +440,26 @@ func (h *ResolverHandler) HandleResolve(w http.ResponseWriter, r *http.Request) 
 func contains(slice []string, item string) bool {
 	for _, s := range slice {
 		if strings.EqualFold(s, item) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsOS checks if OS name matches allowed list
+// Uses partial match: "Windows 10" matches "Windows", "Linux x86_64" matches "Linux"
+func containsOS(allowedOS []string, detectedOS string) bool {
+	if detectedOS == "" {
+		return false
+	}
+	
+	detectedLower := strings.ToLower(detectedOS)
+	
+	for _, allowed := range allowedOS {
+		allowedLower := strings.ToLower(allowed)
+		// Check if detected OS contains allowed OS name
+		// e.g., "windows 10" contains "windows"
+		if strings.Contains(detectedLower, allowedLower) {
 			return true
 		}
 	}

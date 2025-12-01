@@ -297,10 +297,15 @@ func main() {
 			return
 		}
 		
-		// Jika sudah ada node dengan domain yang sama, pakai nodeID yang lama
+		// Jika sudah ada node dengan domain yang sama DAN nodeID-nya sudah format UUID, pakai yang lama
+		// Jika nodeID masih format lama (node-domain.com), generate UUID baru (migration)
 		for _, n := range existingNodes {
 			if n.PublicURL == body.PublicURL || strings.Contains(n.PublicURL, body.Domain) {
-				nodeID = n.ID
+				// Cek apakah ID lama adalah UUID (36 chars dengan format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+				if len(n.ID) == 36 && strings.Count(n.ID, "-") == 4 {
+					nodeID = n.ID // UUID valid, pakai yang lama
+				}
+				// Else: ID lama format "node-domain.com", biarkan pakai UUID baru (migration otomatis)
 				break
 			}
 		}

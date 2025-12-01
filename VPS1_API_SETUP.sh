@@ -103,9 +103,9 @@ cd ~
 if [ -d "nexuslink-project" ]; then
     echo -e "${YELLOW}⚠️  Repository already exists. Pulling latest...${NC}"
     cd nexuslink-project
-    git pull
+    git -c http.version=HTTP/1.1 pull
 else
-    git clone https://github.com/afuzapratama/nexuslink-project.git
+    git -c http.version=HTTP/1.1 clone https://github.com/afuzapratama/nexuslink-project.git
     cd nexuslink-project
 fi
 
@@ -416,7 +416,7 @@ if sudo systemctl is-active --quiet nexuslink-api; then
     # Test health endpoint
     echo -e "${BLUE}Testing API health endpoint...${NC}"
     sleep 2
-    if curl -s http://localhost:8080/health 2>/dev/null | grep -q "ok"; then
+    if curl -4 -s http://localhost:8080/health 2>/dev/null | grep -q "ok"; then
         echo -e "${GREEN}✅ API is responding correctly!${NC}"
     else
         echo -e "${YELLOW}⚠️  API started but health check failed (might need more time)${NC}"

@@ -226,19 +226,19 @@ if ! command -v go &> /dev/null; then
     log_info "Downloading Go 1.25.4..."
     cd /tmp
     
-    # Try primary mirror (go.dev)
-    if wget --timeout=30 --tries=2 -q https://go.dev/dl/go1.25.4.linux-amd64.tar.gz 2>/dev/null; then
+    # Try primary mirror (go.dev) - Force IPv4
+    if wget -4 --timeout=30 --tries=2 -q https://go.dev/dl/go1.25.4.linux-amd64.tar.gz 2>/dev/null; then
         log_success "Downloaded from go.dev"
-    # Try Google mirror
-    elif wget --timeout=30 --tries=2 -q https://golang.google.cn/dl/go1.25.4.linux-amd64.tar.gz 2>/dev/null; then
+    # Try Google mirror - Force IPv4
+    elif wget -4 --timeout=30 --tries=2 -q https://golang.google.cn/dl/go1.25.4.linux-amd64.tar.gz 2>/dev/null; then
         log_success "Downloaded from golang.google.cn"
-    # Try GitHub mirror (redirects to CDN)
-    elif wget --timeout=30 --tries=2 -q https://go.dev/dl/go1.25.4.linux-amd64.tar.gz 2>/dev/null; then
+    # Try GitHub mirror - Force IPv4
+    elif wget -4 --timeout=30 --tries=2 -q https://go.dev/dl/go1.25.4.linux-amd64.tar.gz 2>/dev/null; then
         log_success "Downloaded from GitHub mirror"
     else
         log_error "Failed to download Go from all mirrors"
         echo -e "${RED}Please check your internet connection or try manually:${NC}"
-        echo -e "${BLUE}wget https://go.dev/dl/go1.25.4.linux-amd64.tar.gz${NC}"
+        echo -e "${BLUE}wget -4 https://go.dev/dl/go1.25.4.linux-amd64.tar.gz${NC}"
         exit 1
     fi
     
@@ -283,7 +283,7 @@ log_info "Cloning repository..."
 mkdir -p /tmp/nexuslink-build
 cd /tmp/nexuslink-build
 
-git clone --depth 1 $GITHUB_REPO . > /dev/null 2>&1
+git -c http.version=HTTP/1.1 clone --depth 1 $GITHUB_REPO . > /dev/null 2>&1
 cd nexuslink
 
 log_info "Downloading dependencies..."
@@ -462,7 +462,7 @@ echo -e "${YELLOW}[10/10] Final Verification${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════════${NC}"
 
 # Test local health
-if curl -f http://localhost:9090/health > /dev/null 2>&1; then
+if curl -4 -f http://localhost:9090/health > /dev/null 2>&1; then
     log_success "Local health check passed"
 else
     log_warning "Local health check failed"
@@ -470,7 +470,7 @@ fi
 
 # Test HTTPS (may fail if DNS just propagated)
 sleep 2
-if curl -fk https://$DOMAIN/health > /dev/null 2>&1; then
+if curl -4 -fk https://$DOMAIN/health > /dev/null 2>&1; then
     log_success "HTTPS health check passed"
 else
     log_warning "HTTPS check failed (may need DNS propagation time)"

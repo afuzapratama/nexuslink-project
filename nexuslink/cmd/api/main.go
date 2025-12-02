@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,9 +12,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/afuzapratama/nexuslink/internal/config"
 	"github.com/afuzapratama/nexuslink/internal/database"
+	"github.com/afuzapratama/nexuslink/internal/geoip"
 	"github.com/afuzapratama/nexuslink/internal/handler"
 	"github.com/afuzapratama/nexuslink/internal/models"
 	"github.com/afuzapratama/nexuslink/internal/ratelimit"
@@ -20,6 +24,36 @@ import (
 	"github.com/afuzapratama/nexuslink/internal/util"
 	"github.com/afuzapratama/nexuslink/internal/webhook"
 )
+
+func validateDomainReachability(domain string) error {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	// Try HTTPS first
+	url := "https://" + domain + "/health"
+	resp, err := client.Get(url)
+	if err != nil {
+		// Try HTTP
+		url = "http://" + domain + "/health"
+		resp, err = client.Get(url)
+		if err != nil {
+			return fmt.Errorf("unreachable: %v", err)
+		}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("returned status %d", resp.StatusCode)
+	}
+
+	// Check body for "Nexus Agent"
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "Nexus Agent") {
+		return fmt.Errorf("response does not contain 'Nexus Agent'")
+	}
+
+	return nil
+}
 
 func main() {
 	config.Init()
@@ -53,6 +87,24 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(database.Client(), database.WebhooksTableName)
 	variantRepo := repository.NewLinkVariantRepository(database.Client())
 
+	// Initialize default settings if not exists
+	ctx := context.Background()
+	existingSettings, err := settingsRepo.Get(ctx)
+	if err != nil {
+		log.Printf("Warning: failed to check settings: %v", err)
+	}
+	if existingSettings == nil {
+		log.Println("No settings found, creating default settings...")
+		defaultSettings := models.DefaultSettings()
+		if err := settingsRepo.Update(ctx, defaultSettings); err != nil {
+			log.Printf("Warning: failed to create default settings: %v", err)
+		} else {
+			log.Println("✅ Default settings created (username: admin, password: admin)")
+		}
+	} else {
+		log.Println("Settings already exist")
+	}
+
 	// Initialize webhook sender
 	webhookSender := webhook.NewSender()
 
@@ -60,6 +112,7 @@ func main() {
 	linkHandler := handler.NewLinkHandler(linkRepo, statsRepo, clickRepo, webhookRepo, webhookSender)
 	resolverHandler := handler.NewResolverHandler(linkRepo, statsRepo, clickRepo, settingsRepo, webhookRepo, webhookSender, variantRepo)
 	variantHandler := handler.NewVariantHandler(variantRepo, linkRepo)
+	authHandler := handler.NewAuthHandler(settingsRepo)
 
 	mux := http.NewServeMux()
 
@@ -69,6 +122,11 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK - Nexus API is running"))
 	})
+
+	// Auth endpoints (no WithAgentAuth - these use session token)
+	mux.HandleFunc("/auth/login", authHandler.HandleLogin)
+	mux.HandleFunc("/auth/logout", authHandler.HandleLogout)
+	mux.HandleFunc("/auth/session", authHandler.HandleSession)
 
 	// Link endpoints (migrated to handler)
 	mux.HandleFunc("/links", handler.WithAgentAuth(linkHandler.HandleLinks))
@@ -257,7 +315,20 @@ func main() {
 			return
 		}
 
-		if err := nodeRepo.UpsertNode(r.Context(), &n); err != nil {
+		// Get IP address
+		ip := r.Header.Get("X-Real-IP")
+		if ip == "" {
+			ip = r.Header.Get("X-Forwarded-For")
+			if idx := strings.Index(ip, ","); idx > 0 {
+				ip = strings.TrimSpace(ip[:idx])
+			}
+		}
+		if ip == "" {
+			ip = strings.Split(r.RemoteAddr, ":")[0]
+		}
+
+		// Use UpdateHeartbeat to avoid overwriting other fields (like Domains)
+		if err := nodeRepo.UpdateHeartbeat(r.Context(), n.ID, n.AgentVersion, ip); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -274,7 +345,7 @@ func main() {
 		var body struct {
 			Token        string `json:"token"`
 			Domain       string `json:"domain"`
-			Region       string `json:"region"`
+			Region       string `json:"region"` // Optional, will be overridden by GeoIP
 			PublicURL    string `json:"publicUrl"`
 			AgentVersion string `json:"agentVersion"`
 		}
@@ -286,6 +357,29 @@ func main() {
 		if body.Token == "" || body.Domain == "" {
 			http.Error(w, "token and domain are required", http.StatusBadRequest)
 			return
+		}
+
+		// Get IP address
+		ip := r.Header.Get("X-Real-IP")
+		if ip == "" {
+			ip = r.Header.Get("X-Forwarded-For")
+			if idx := strings.Index(ip, ","); idx > 0 {
+				ip = strings.TrimSpace(ip[:idx])
+			}
+		}
+		if ip == "" {
+			ip = strings.Split(r.RemoteAddr, ":")[0]
+		}
+
+		// GeoIP Lookup for Region
+		countryCode, city := geoip.Lookup(ip)
+		region := body.Region
+		if countryCode != "" {
+			if city != "" {
+				region = city + ", " + countryCode
+			} else {
+				region = countryCode
+			}
 		}
 
 		// cek token
@@ -312,7 +406,16 @@ func main() {
 		// Jika sudah ada node dengan domain yang sama DAN nodeID-nya sudah format UUID, pakai yang lama
 		// Jika nodeID masih format lama (node-domain.com), generate UUID baru (migration)
 		for _, n := range existingNodes {
-			if n.PublicURL == body.PublicURL || strings.Contains(n.PublicURL, body.Domain) {
+			// Check if domain exists in n.Domains
+			domainExists := false
+			for _, d := range n.Domains {
+				if d == body.Domain {
+					domainExists = true
+					break
+				}
+			}
+
+			if domainExists {
 				// Cek apakah ID lama adalah UUID (36 chars dengan format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
 				if len(n.ID) == 36 && strings.Count(n.ID, "-") == 4 {
 					nodeID = n.ID // UUID valid, pakai yang lama
@@ -325,8 +428,9 @@ func main() {
 		node := &models.Node{
 			ID:           nodeID,
 			Name:         nt.Label,
-			Region:       body.Region,
-			PublicURL:    body.PublicURL,
+			Region:       region,
+			IPAddress:    ip,
+			Domains:      []string{body.Domain}, // Add primary domain to list
 			LastSeenAt:   time.Now().UTC(),
 			IsOnline:     true,
 			AgentVersion: body.AgentVersion,
@@ -346,12 +450,12 @@ func main() {
 			NodeID    string `json:"nodeId"`
 			Name      string `json:"name"`
 			Region    string `json:"region"`
-			PublicURL string `json:"publicUrl"`
+			PublicURL string `json:"publicUrl"` // Deprecated but kept for agent compatibility
 		}{
 			NodeID:    node.ID,
 			Name:      node.Name,
 			Region:    node.Region,
-			PublicURL: node.PublicURL,
+			PublicURL: body.PublicURL, // Echo back what agent sent
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -446,6 +550,12 @@ func main() {
 
 			if strings.TrimSpace(input.Domain) == "" {
 				http.Error(w, "domain is required", http.StatusBadRequest)
+				return
+			}
+
+			// Validate domain reachability
+			if err := validateDomainReachability(strings.TrimSpace(input.Domain)); err != nil {
+				http.Error(w, fmt.Sprintf("Domain validation failed: %v. Please ensure you have run add-domain.sh on the VPS first.", err), http.StatusBadRequest)
 				return
 			}
 
@@ -836,6 +946,53 @@ func main() {
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+	}))
+
+	// Settings endpoints - Auth (change username/password)
+	mux.HandleFunc("/admin/settings/auth", authHandler.WithAuth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var input struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		if input.Username == "" || input.Password == "" {
+			http.Error(w, "Username and password are required", http.StatusBadRequest)
+			return
+		}
+
+		// Hash password dengan bcrypt
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+			return
+		}
+
+		// Get existing settings
+		settings := settingsRepo.GetOrDefault(r.Context())
+		settings.AdminUsername = input.Username
+		settings.AdminPassword = string(hashedPassword)
+
+		// Save
+		if err := settingsRepo.Update(r.Context(), settings); err != nil {
+			http.Error(w, "Failed to update credentials", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": "Credentials updated successfully",
+		})
 	}))
 
 	// Settings endpoints - Rate Limit Configuration

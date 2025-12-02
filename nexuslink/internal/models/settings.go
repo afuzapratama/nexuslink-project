@@ -7,6 +7,10 @@ import "time"
 type Settings struct {
 	ID string `json:"id" dynamodbav:"id"` // selalu "global-settings"
 
+	// Admin authentication
+	AdminUsername string `json:"adminUsername" dynamodbav:"adminUsername"`
+	AdminPassword string `json:"adminPassword" dynamodbav:"adminPassword"` // bcrypt hashed
+
 	// ProxyCheck.io configuration
 	EnableProxyCheck bool   `json:"enableProxyCheck" dynamodbav:"enableProxyCheck"`
 	ProxyCheckAPIKey string `json:"proxyCheckApiKey,omitempty" dynamodbav:"proxyCheckApiKey,omitempty"`
@@ -35,6 +39,8 @@ func DefaultSettings() *Settings {
 	now := time.Now().UTC()
 	return &Settings{
 		ID:                   "global-settings",
+		AdminUsername:        "admin",
+		AdminPassword:        "$2a$10$JyQVcqMDYmQNDVY5C9Pmy.XcvV06aYVVauolCtNQd90ok05sKCD3u", // bcrypt hash of "admin"
 		EnableProxyCheck:     false,
 		ProxyCheckAPIKey:     "",
 		EnableIPQualityScore: false,

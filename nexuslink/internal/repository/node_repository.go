@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"github.com/afuzapratama/nexuslink/internal/config"
 	"github.com/afuzapratama/nexuslink/internal/database"
@@ -42,15 +43,44 @@ func (r *NodeRepository) UpsertNode(ctx context.Context, n *models.Node) error {
 	return err
 }
 
+// UpdateHeartbeat updates only the heartbeat fields of a node to avoid overwriting other fields like Domains
+func (r *NodeRepository) UpdateHeartbeat(ctx context.Context, id string, agentVersion string, ipAddress string) error {
+	key, err := attributevalue.MarshalMap(map[string]string{
+		"id": id,
+	})
+	if err != nil {
+		return err
+	}
+
+	now := time.Now().UTC()
+	t, _ := attributevalue.Marshal(now)
+	o, _ := attributevalue.Marshal(true)
+	v, _ := attributevalue.Marshal(agentVersion)
+	ip, _ := attributevalue.Marshal(ipAddress)
+
+	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:        aws.String(database.NodesTableName),
+		Key:              key,
+		UpdateExpression: aws.String("SET lastSeenAt = :t, isOnline = :o, agentVersion = :v, ipAddress = :ip"),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":t":  t,
+			":o":  o,
+			":v":  v,
+			":ip": ip,
+		},
+	})
+
+	return err
+}
+
 // Helper untuk bikin Node dari env Agent (dipakai di API nanti juga kalau perlu)
 func NodeFromEnv() *models.Node {
 	config.Init()
 
 	return &models.Node{
-		ID:        config.GetEnv("NEXUS_NODE_ID", "node-local-1"),
-		Name:      config.GetEnv("NEXUS_NODE_NAME", "Local Dev Node"),
-		Region:    config.GetEnv("NEXUS_NODE_REGION", "ID-JKT"),
-		PublicURL: config.GetEnv("NEXUS_NODE_PUBLIC_URL", "http://localhost:9090"),
+		ID:     config.GetEnv("NEXUS_NODE_ID", "node-local-1"),
+		Name:   config.GetEnv("NEXUS_NODE_NAME", "Local Dev Node"),
+		Region: config.GetEnv("NEXUS_NODE_REGION", "ID-JKT"),
 	}
 }
 
@@ -193,12 +223,6 @@ func (r *NodeRepository) GetNodeByDomain(ctx context.Context, domain string) (*m
 
 	// Check each node's domain list
 	for _, node := range nodes {
-		// Check primary domain (PublicURL)
-		if extractDomain(node.PublicURL) == domain {
-			n := node
-			return &n, nil
-		}
-
 		// Check additional domains
 		for _, d := range node.Domains {
 			if d == domain {

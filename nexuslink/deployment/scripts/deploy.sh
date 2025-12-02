@@ -21,6 +21,7 @@ INSTALL_DIR="/opt/nexuslink"
 LOG_DIR="/var/log/nexuslink"
 USER="nexus"
 GROUP="nexus"
+SOURCE_DIR=""
 
 echo -e "${BLUE}"
 cat << "EOF"
@@ -123,12 +124,13 @@ install_nodejs() {
 build_binaries() {
     echo -e "\n${YELLOW}🔨 Building binaries...${NC}"
     
-    cd "$INSTALL_DIR"
+    cd "$SOURCE_DIR"
     
     if [ "$COMPONENT" = "api" ] || [ "$COMPONENT" = "all" ]; then
         echo "Building API..."
         CGO_ENABLED=0 go build -ldflags='-w -s' -o nexus-api ./cmd/api/main.go
         chmod +x nexus-api
+        mv nexus-api "$INSTALL_DIR/"
         echo -e "${GREEN}✅ API binary built${NC}"
     fi
     
@@ -136,10 +138,11 @@ build_binaries() {
         echo "Building Agent..."
         CGO_ENABLED=0 go build -ldflags='-w -s' -o nexus-agent ./cmd/agent/main.go
         chmod +x nexus-agent
+        mv nexus-agent "$INSTALL_DIR/"
         echo -e "${GREEN}✅ Agent binary built${NC}"
     fi
     
-    chown "$USER:$GROUP" nexus-*
+    chown "$USER:$GROUP" "$INSTALL_DIR/nexus-api" "$INSTALL_DIR/nexus-agent" 2>/dev/null || true
 }
 
 # Function to setup environment
@@ -188,7 +191,7 @@ install_systemd_service() {
     local service=$1
     echo -e "\n${YELLOW}🔧 Installing systemd service: $service${NC}"
     
-    local service_file="$INSTALL_DIR/deployment/systemd/nexuslink-${service}.service"
+    local service_file="$SOURCE_DIR/deployment/systemd/nexuslink-${service}.service"
     local dest_file="/etc/systemd/system/nexuslink-${service}.service"
     
     if [ -f "$service_file" ]; then
@@ -275,7 +278,13 @@ main() {
     fi
     
     # Clone or copy source code
-    if [ ! -d "$INSTALL_DIR/cmd" ]; then
+    if [ -d "$INSTALL_DIR/nexuslink/cmd" ]; then
+        echo "Found source code in subdirectory..."
+        SOURCE_DIR="$INSTALL_DIR/nexuslink"
+    elif [ -d "$INSTALL_DIR/cmd" ]; then
+        echo "Found source code in root..."
+        SOURCE_DIR="$INSTALL_DIR"
+    else
         echo -e "${YELLOW}⚠️  Source code not found in $INSTALL_DIR${NC}"
         echo "Please copy your source code to $INSTALL_DIR first"
         echo "Example: sudo cp -r /path/to/nexuslink/* $INSTALL_DIR/"

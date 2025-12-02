@@ -222,7 +222,7 @@ case $COMPONENT in
             API_KEY="$API_KEY" \
             NODE_TOKEN="$TOKEN" \
             SSL_EMAIL="$EMAIL" \
-            INSTALL_DIR="$INSTALL_DIR/nexuslink" \
+            INSTALL_DIR="$INSTALL_DIR" \
             bash "$INSTALL_DIR/nexuslink/deployment/scripts/install-agent-noninteractive.sh"
         fi
         ;;
@@ -238,7 +238,7 @@ case $COMPONENT in
         echo ""
         echo -e "${YELLOW}🚀 Installing Dashboard...${NC}"
         echo "For dashboard installation, please follow:"
-        echo "  $INSTALL_DIR/nexuslink/deployment/PRODUCTION_DEPLOYMENT.md"
+        echo "  $INSTALL_DIR/nexuslink/deployment/QUICK_START_PRODUCTION.md"
         echo ""
         echo "Quick steps:"
         echo "  1. cd $INSTALL_DIR/nexuslink-dashboard"

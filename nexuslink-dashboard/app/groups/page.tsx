@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent, useCallback } from 'react';
 import { useToast } from '@/components/Toast';
 import { LoadingSpinner } from '@/components/Loading';
+import { Table, Column } from '@/components/Table';
 
 type LinkGroup = {
   id: string;
@@ -30,8 +31,9 @@ export default function GroupsPage() {
   // Edit state
   const [editingGroup, setEditingGroup] = useState<LinkGroup | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<LinkGroup | null>(null);
+  const [showForm, setShowForm] = useState(false);
 
-  async function loadGroups() {
+  const loadGroups = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/nexus/groups', { cache: 'no-store' });
@@ -46,11 +48,11 @@ export default function GroupsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [showToast]);
 
   useEffect(() => {
     loadGroups();
-  }, []);
+  }, [loadGroups]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -96,13 +98,7 @@ export default function GroupsPage() {
         'success'
       );
 
-      // Reset form
-      setName('');
-      setDescription('');
-      setColor('#3b82f6');
-      setIcon('📁');
-      setEditingGroup(null);
-
+      resetForm();
       await loadGroups();
     } catch (err) {
       console.error(err);
@@ -112,20 +108,23 @@ export default function GroupsPage() {
     }
   }
 
+  function resetForm() {
+    setName('');
+    setDescription('');
+    setColor('#3b82f6');
+    setIcon('📁');
+    setEditingGroup(null);
+    setShowForm(false);
+  }
+
   function startEdit(group: LinkGroup) {
     setEditingGroup(group);
     setName(group.name);
     setDescription(group.description || '');
     setColor(group.color || '#3b82f6');
     setIcon(group.icon || '📁');
-  }
-
-  function cancelEdit() {
-    setEditingGroup(null);
-    setName('');
-    setDescription('');
-    setColor('#3b82f6');
-    setIcon('📁');
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function handleDelete() {
@@ -162,195 +161,232 @@ export default function GroupsPage() {
 
   const predefinedIcons = ['📁', '📢', '🛍️', '💬', '🎯', '⚡', '🔥', '✨', '🎨', '📊', '🔧', '🌟'];
 
+  const columns: Column<LinkGroup>[] = [
+    {
+      header: 'Group',
+      accessorKey: 'name',
+      sortable: true,
+      render: (group) => {
+        const style = { backgroundColor: `${group.color}20`, color: group.color };
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-xl shadow-sm"
+              {...{ style }}
+            >
+              {group.icon}
+            </div>
+            <div>
+              <div className="font-medium text-slate-200">{group.name}</div>
+              <div className="text-xs text-slate-500">Sort order: {group.sortOrder}</div>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Description',
+      accessorKey: 'description',
+      sortable: true,
+      render: (group) => (
+        <span className="text-slate-300">{group.description || <span className="text-slate-600">—</span>}</span>
+      ),
+    },
+    {
+      header: 'Created',
+      accessorKey: 'createdAt',
+      sortable: true,
+      render: (group) => (
+        <span className="text-slate-300">{new Date(group.createdAt).toLocaleDateString()}</span>
+      ),
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'id',
+      sortable: false,
+      render: (group) => (
+        <div className="flex gap-2">
+          <button
+            onClick={() => startEdit(group)}
+            className="rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-400 hover:bg-sky-500/20 transition-colors"
+            aria-label={`Edit ${group.name}`}
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setDeleteConfirm(group)}
+            className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/20 transition-colors"
+            aria-label={`Delete ${group.name}`}
+          >
+            Delete
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold text-slate-50">Link Groups</h1>
-        <p className="text-sm text-slate-400">
-          Organize your links into groups for better management
-        </p>
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-50">Link Groups</h1>
+          <p className="text-sm text-slate-400">
+            Organize your links into groups for better management
+          </p>
+        </div>
+        {!showForm && !editingGroup && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="h-9 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-600 transition-colors"
+          >
+            + Add Group
+          </button>
+        )}
       </header>
 
       {/* Create/Edit Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4"
-      >
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">
-          {editingGroup ? 'Edit Group' : 'Create New Group'}
-        </h2>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Name *
-            </label>
-            <input
-              className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-slate-50 outline-none placeholder:text-slate-600"
-              placeholder="Marketing"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Description
-            </label>
-            <input
-              className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 text-slate-50 outline-none placeholder:text-slate-600"
-              placeholder="Marketing campaign links"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Color
-            </label>
-            <div className="flex gap-2">
-              {predefinedColors.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  onClick={() => setColor(c.value)}
-                  className={`h-8 w-8 rounded-lg transition-all ${
-                    color === c.value ? 'ring-2 ring-slate-300 ring-offset-2 ring-offset-slate-900' : ''
-                  }`}
-                  style={{ backgroundColor: c.value }}
-                  title={c.name}
-                />
-              ))}
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="h-8 w-8 cursor-pointer rounded-lg border border-slate-700"
-              />
+      {(showForm || editingGroup) && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur-sm shadow-lg">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <h2 className="text-lg font-semibold text-slate-50">
+                {editingGroup ? 'Edit Group' : 'Create New Group'}
+              </h2>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                aria-label="Close form"
+              >
+                ✕
+              </button>
             </div>
-          </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">
-              Icon
-            </label>
-            <div className="flex gap-2">
-              {predefinedIcons.map((i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setIcon(i)}
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all ${
-                    icon === i
-                      ? 'border-sky-500 bg-sky-500/20'
-                      : 'border-slate-700 bg-slate-950/60 hover:bg-slate-800'
-                  }`}
-                >
-                  {i}
-                </button>
-              ))}
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="group-name" className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Name *
+                  </label>
+                  <input
+                    id="group-name"
+                    className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-3 text-slate-50 outline-none placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                    placeholder="Marketing"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="group-description" className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Description
+                  </label>
+                  <input
+                    id="group-description"
+                    className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-3 text-slate-50 outline-none placeholder:text-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                    placeholder="Marketing campaign links"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Color
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {predefinedColors.map((c) => {
+                      const style = { backgroundColor: c.value };
+                      return (
+                        <button
+                          key={c.value}
+                          type="button"
+                          onClick={() => setColor(c.value)}
+                          className={`h-8 w-8 rounded-lg transition-all ${
+                            color === c.value ? 'ring-2 ring-slate-300 ring-offset-2 ring-offset-slate-900 scale-110' : 'hover:scale-105'
+                          }`}
+                          {...{ style }}
+                          title={c.name}
+                          aria-label={`Select color ${c.name}`}
+                        />
+                      );
+                    })}
+                    <div className="relative h-8 w-8 overflow-hidden rounded-lg border border-slate-700">
+                      <input
+                        type="color"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        className="absolute -left-1 -top-1 h-10 w-10 cursor-pointer border-none bg-transparent p-0"
+                        aria-label="Custom color"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Icon
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {predefinedIcons.map((i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setIcon(i)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all ${
+                          icon === i
+                            ? 'border-sky-500 bg-sky-500/20 text-xl'
+                            : 'border-slate-700 bg-slate-950/60 hover:bg-slate-800 hover:border-slate-600'
+                        }`}
+                        aria-label={`Select icon ${i}`}
+                      >
+                        {i}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex h-9 items-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-medium text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving && <LoadingSpinner size="sm" />}
-            {saving ? 'Saving...' : editingGroup ? 'Update Group' : 'Create Group'}
-          </button>
-          
-          {editingGroup && (
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="h-9 rounded-lg border border-slate-700 bg-slate-800 px-4 text-sm font-medium text-slate-200 hover:bg-slate-700"
-            >
-              Cancel
-            </button>
-          )}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-4">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-2 rounded-lg bg-sky-500 px-6 py-2 text-sm font-medium text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60 shadow-lg shadow-sky-500/20 transition-all hover:shadow-sky-500/30 hover:-translate-y-0.5"
+              >
+                {saving && <LoadingSpinner size="sm" />}
+                {saving ? 'Saving...' : editingGroup ? 'Update Group' : 'Create Group'}
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      )}
 
       {/* Groups Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60">
-        <table className="min-w-full border-collapse text-sm">
-          <thead className="bg-slate-900/80">
-            <tr className="text-left text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-4 py-2">Group</th>
-              <th className="px-4 py-2">Description</th>
-              <th className="px-4 py-2">Created</th>
-              <th className="px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                  Loading groups...
-                </td>
-              </tr>
-            ) : groups.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                  No groups yet. Create one above!
-                </td>
-              </tr>
-            ) : (
-              groups.map((group) => (
-                <tr
-                  key={group.id}
-                  className="border-t border-slate-800/80 hover:bg-slate-900/80"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-xl"
-                        style={{ backgroundColor: `${group.color}20`, color: group.color }}
-                      >
-                        {group.icon}
-                      </div>
-                      <div>
-                        <div className="font-medium text-slate-200">{group.name}</div>
-                        <div className="text-xs text-slate-500">Sort order: {group.sortOrder}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {group.description || <span className="text-slate-600">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">
-                    {new Date(group.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => startEdit(group)}
-                        className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium text-white hover:bg-sky-400"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(group)}
-                        className="rounded-lg bg-rose-500 px-3 py-1 text-xs font-medium text-white hover:bg-rose-400"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <LoadingSpinner size="md" />
+        </div>
+      ) : (
+        <Table
+          data={groups}
+          searchable
+          searchKeys={['name', 'description']}
+          pageSize={10}
+          emptyMessage="No groups yet. Create one above!"
+          columns={columns}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirm && (

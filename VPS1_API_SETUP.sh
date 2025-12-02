@@ -461,13 +461,28 @@ server {
     location / {
         proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
+        
+        # WebSocket support
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # Critical: Pass real visitor IP from agents
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
+        
+        # Pass visitor context headers from agents
+        proxy_set_header X-Visitor-User-Agent \$http_x_visitor_user_agent;
+        proxy_set_header X-Visitor-Referer \$http_x_visitor_referer;
+        
+        # Standard headers
+        proxy_set_header Host \$host;
+        
+        # Timeouts
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
     }
 }
 EOF

@@ -466,13 +466,20 @@ server {
     location / {
         proxy_pass http://localhost:9090;
         proxy_http_version 1.1;
-        proxy_set_header Host $host;
+        
+        # Critical: Pass real visitor IP (not agent's IP)
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Pass visitor context for analytics
         proxy_set_header X-Visitor-User-Agent $http_user_agent;
         proxy_set_header X-Visitor-Referer $http_referer;
         
+        # Standard proxy headers
+        proxy_set_header Host $host;
+        
+        # Timeouts for fast redirects
         proxy_connect_timeout 5s;
         proxy_send_timeout 10s;
         proxy_read_timeout 10s;

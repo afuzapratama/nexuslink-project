@@ -1,14 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { LoadingSpinner } from './Loading';
 
 type SortDirection = 'asc' | 'desc' | null;
 
-interface Column<T> {
-  key: keyof T | string;
-  label: string;
+export interface Column<T> {
+  header: React.ReactNode;
+  accessorKey: keyof T | string;
+  className?: string;
   sortable?: boolean;
   render?: (item: T) => React.ReactNode;
+}
+
+interface PaginationProps {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  totalItems: number;
+  itemsPerPage: number;
 }
 
 interface TableProps<T> {
@@ -17,25 +27,35 @@ interface TableProps<T> {
   searchable?: boolean;
   searchKeys?: (keyof T)[];
   pageSize?: number;
-  emptyMessage?: string;
+  emptyMessage?: React.ReactNode;
+  isLoading?: boolean;
+  pagination?: PaginationProps; // If provided, enables server-side pagination mode
 }
 
-export default function Table<T extends Record<string, any>>({
+export function Table<T extends Record<string, any>>({
   data,
   columns,
   searchable = false,
   searchKeys = [],
   pageSize = 10,
   emptyMessage = 'No data available',
+  isLoading = false,
+  pagination,
 }: TableProps<T>) {
   const [sortKey, setSortKey] = useState<keyof T | string | null>(null);
   const [sortDir, setSortDir] = useState<SortDirection>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Internal state for client-side mode
+  const [internalPage, setInternalPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [itemsPerPage, setItemsPerPage] = useState(pageSize);
+  const [internalPageSize, setInternalPageSize] = useState(pageSize);
 
-  // Filter data based on search
-  const filteredData = searchable && search
+  // Use provided pagination or internal state
+  const currentPage = pagination ? pagination.currentPage : internalPage;
+  const itemsPerPage = pagination ? pagination.itemsPerPage : internalPageSize;
+
+  // Filter data based on search (Client-side only)
+  const filteredData = !pagination && searchable && search
     ? data.filter((item) =>
         searchKeys.some((key) => {
           const value = item[key];
@@ -44,8 +64,8 @@ export default function Table<T extends Record<string, any>>({
       )
     : data;
 
-  // Sort data
-  const sortedData = sortKey
+  // Sort data (Client-side only)
+  const sortedData = !pagination && sortKey
     ? [...filteredData].sort((a, b) => {
         const aVal = a[sortKey];
         const bVal = b[sortKey];
@@ -63,7 +83,7 @@ export default function Table<T extends Record<string, any>>({
           return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
         }
 
-        // Try to parse as dates for date string comparison
+        // Try to parse as dates
         try {
           const aDate = new Date(aVal as any);
           const bDate = new Date(bVal as any);
@@ -73,17 +93,26 @@ export default function Table<T extends Record<string, any>>({
               : bDate.getTime() - aDate.getTime();
           }
         } catch {
-          // Not a date, continue to default
+          // Ignore
         }
 
         return 0;
       })
     : filteredData;
 
-  // Paginate
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
-  const startIdx = (currentPage - 1) * itemsPerPage;
-  const paginatedData = sortedData.slice(startIdx, startIdx + itemsPerPage);
+  // Paginate (Client-side only)
+  // If server-side pagination is used, we assume `data` is already the current page
+  const displayData = pagination 
+    ? data 
+    : sortedData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const totalPages = pagination 
+    ? pagination.totalPages 
+    : Math.ceil(sortedData.length / itemsPerPage);
+
+  const totalItems = pagination
+    ? pagination.totalItems
+    : sortedData.length;
 
   const handleSort = (key: keyof T | string, sortable?: boolean) => {
     if (!sortable) return;
@@ -98,13 +127,18 @@ export default function Table<T extends Record<string, any>>({
   };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(Math.min(Math.max(1, page), totalPages));
+    const newPage = Math.min(Math.max(1, page), totalPages);
+    if (pagination) {
+      pagination.onPageChange(newPage);
+    } else {
+      setInternalPage(newPage);
+    }
   };
 
   return (
     <div className="space-y-4">
-      {/* Search & Controls */}
-      {searchable && (
+      {/* Search & Controls (Client-side only for now) */}
+      {!pagination && searchable && (
         <div className="flex items-center justify-between gap-4">
           <input
             type="text"
@@ -112,15 +146,15 @@ export default function Table<T extends Record<string, any>>({
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setCurrentPage(1);
+              setInternalPage(1);
             }}
             className="h-9 flex-1 rounded-lg border border-slate-700 bg-slate-800/50 px-3 text-sm text-slate-200 placeholder-slate-500 focus:border-slate-600 focus:outline-none"
           />
           <select
             value={itemsPerPage}
             onChange={(e) => {
-              setItemsPerPage(Number(e.target.value));
-              setCurrentPage(1);
+              setInternalPageSize(Number(e.target.value));
+              setInternalPage(1);
             }}
             className="h-9 rounded-lg border border-slate-700 bg-slate-800/50 px-3 text-sm text-slate-200 focus:border-slate-600 focus:outline-none"
             aria-label="Items per page"
@@ -134,70 +168,92 @@ export default function Table<T extends Record<string, any>>({
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-800">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-800 bg-slate-900/50">
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={String(col.key)}
-                  onClick={() => handleSort(col.key, col.sortable)}
-                  className={`px-4 py-3 font-medium text-slate-300 ${
-                    col.sortable ? 'cursor-pointer hover:text-slate-100' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {col.label}
-                    {col.sortable && (
-                      <span className="text-xs text-slate-500">
-                        {sortKey === col.key
-                          ? sortDir === 'asc'
-                            ? '↑'
-                            : sortDir === 'desc'
-                              ? '↓'
-                              : '⇅'
-                          : '⇅'}
-                      </span>
-                    )}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.length === 0 ? (
+      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 shadow-sm backdrop-blur-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-800 bg-slate-900/80">
               <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-8 text-center text-slate-400"
-                >
-                  {emptyMessage}
-                </td>
+                {columns.map((col, idx) => (
+                  <th
+                    key={idx}
+                    onClick={() => handleSort(col.accessorKey, col.sortable)}
+                    className={`px-4 py-3.5 font-semibold text-slate-300 uppercase tracking-wider text-xs ${col.className || ''} ${
+                      col.sortable ? 'cursor-pointer hover:text-white hover:bg-slate-800/50 transition-colors' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {col.header}
+                      {col.sortable && (
+                        <span className={`text-xs transition-colors ${sortKey === col.accessorKey ? 'text-blue-400' : 'text-slate-600'}`}>
+                          {sortKey === col.accessorKey
+                            ? sortDir === 'asc'
+                              ? '↑'
+                              : sortDir === 'desc'
+                                ? '↓'
+                                : '⇅'
+                            : '⇅'}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                ))}
               </tr>
-            ) : (
-              paginatedData.map((item, idx) => (
-                <tr
-                  key={idx}
-                  className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30"
-                >
-                  {columns.map((col) => (
-                    <td key={String(col.key)} className="px-4 py-3 text-slate-200">
-                      {col.render ? col.render(item) : String(item[col.key] ?? '—')}
-                    </td>
-                  ))}
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {isLoading ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-4 py-12 text-center text-slate-500"
+                  >
+                    <div className="flex justify-center">
+                      <LoadingSpinner size="md" />
+                    </div>
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : displayData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-4 py-12 text-center text-slate-500"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      {typeof emptyMessage === 'string' ? (
+                        <>
+                          <div className="text-2xl">🔍</div>
+                          <p>{emptyMessage}</p>
+                        </>
+                      ) : (
+                        emptyMessage
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                displayData.map((item, idx) => (
+                  <tr
+                    key={item.id || idx}
+                    className="group transition-colors hover:bg-slate-800/30"
+                  >
+                    {columns.map((col, colIdx) => (
+                      <td key={colIdx} className={`px-4 py-3.5 text-slate-300 group-hover:text-slate-200 ${col.className || ''}`}>
+                        {col.render ? col.render(item) : String(item[col.accessorKey] ?? '—')}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!isLoading && totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-slate-400">
           <div>
-            Showing {startIdx + 1}-{Math.min(startIdx + itemsPerPage, sortedData.length)} of{' '}
-            {sortedData.length}
+            Showing {pagination ? (currentPage - 1) * itemsPerPage + 1 : (currentPage - 1) * itemsPerPage + 1}-
+            {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
           </div>
           <div className="flex items-center gap-2">
             <button

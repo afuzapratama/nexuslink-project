@@ -181,13 +181,24 @@ server {
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
+        
+        # Next.js WebSocket support (HMR, etc.)
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        
+        # Pass real admin IP for audit logs
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
+        
+        # Standard headers
+        proxy_set_header Host \$host;
+        
+        # Timeouts
+        proxy_connect_timeout 30s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
     }
 }
 EOF

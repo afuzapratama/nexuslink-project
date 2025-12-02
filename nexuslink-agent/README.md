@@ -366,19 +366,35 @@ systemctl status nexuslink-agent
 journalctl -u nexuslink-agent -f
 ```
 
-Or **reinstall** (keeps same domain/config):
+## 🌐 Adding Multiple Domains to One Agent
+
+You can serve multiple domains from a single agent (e.g., `go.example.com` AND `link.example.com` on the same VPS).
+
+### Step 1: Add Domain in Dashboard
+1. Go to **Dashboard → Nodes**
+2. Find your node
+3. Click the **Domains** button (Shield icon)
+4. Add your new domain (e.g., `link.example.com`)
+
+### Step 2: Configure VPS
+Run the helper script on your agent server:
+
 ```bash
-# Backup token & key first!
-cat /opt/nexuslink-agent/.env | grep -E "TOKEN|KEY"
+# Download helper script (if not already present)
+curl -fsSL -o add-domain.sh https://raw.githubusercontent.com/afuzapratama/nexuslink-project/main/nexuslink-agent/add-domain.sh
+chmod +x add-domain.sh
 
-# Remove old installation
-systemctl stop nexuslink-agent
-rm -rf /opt/nexuslink-agent
-rm /etc/systemd/system/nexuslink-agent.service
-
-# Run installer again with same parameters
-curl -fsSL ... | bash -s -- (same command as before)
+# Run it
+sudo ./add-domain.sh link.example.com
 ```
+
+This will:
+1. Verify DNS for the new domain
+2. Create Nginx configuration
+3. Obtain SSL certificate
+4. Reload Nginx
+
+**Done!** Your agent now serves both domains.
 
 ---
 

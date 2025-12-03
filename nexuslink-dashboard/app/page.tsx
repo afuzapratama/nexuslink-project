@@ -26,10 +26,21 @@ interface ClickEvent {
   isBot?: boolean;
 }
 
+interface SystemHealth {
+  api: { status: boolean; url: string };
+  agent: { status: boolean; url: string };
+  database: { status: boolean; url: string };
+}
+
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth>({
+    api: { status: false, url: 'Checking...' },
+    agent: { status: false, url: 'Checking...' },
+    database: { status: false, url: 'Checking...' },
+  });
 
   useEffect(() => {
     async function fetchStats() {
@@ -39,6 +50,9 @@ export default function Home() {
           fetch('/api/nexus/nodes', { cache: 'no-store' }),
           fetch('/api/nexus/clicks?page=1&limit=1000', { cache: 'no-store' }), // Get all clicks
         ]);
+
+        // Fetch system health
+        fetchSystemHealth();
 
         const linksData = await linksRes.json();
         const nodesData = await nodesRes.json();
@@ -79,6 +93,16 @@ export default function Home() {
 
     fetchStats();
   }, []);
+
+  async function fetchSystemHealth() {
+    try {
+      const healthRes = await fetch('/api/nexus/health', { cache: 'no-store' });
+      const healthData = await healthRes.json();
+      setSystemHealth(healthData);
+    } catch (error) {
+      console.error('Failed to fetch system health:', error);
+    }
+  }
 
   if (loading) {
     return <Loading text="Loading dashboard..." />;
@@ -488,24 +512,36 @@ export default function Home() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">System Status</h2>
         <div className="grid gap-6 text-sm md:grid-cols-3">
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+            <div className={`h-2 w-2 rounded-full ${
+              systemHealth.api.status
+                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+            }`}></div>
             <div>
               <div className="text-slate-400 text-xs">API Server</div>
-              <div className="font-mono text-slate-200">http://localhost:8080</div>
+              <div className="font-mono text-slate-200">{systemHealth.api.url}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+            <div className={`h-2 w-2 rounded-full ${
+              systemHealth.agent.status
+                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+            }`}></div>
             <div>
               <div className="text-slate-400 text-xs">Agent Server</div>
-              <div className="font-mono text-slate-200">http://localhost:9090</div>
+              <div className="font-mono text-slate-200">{systemHealth.agent.url}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+            <div className={`h-2 w-2 rounded-full ${
+              systemHealth.database.status
+                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]'
+            }`}></div>
             <div>
               <div className="text-slate-400 text-xs">Database</div>
-              <div className="font-mono text-slate-200">DynamoDB Local (8000)</div>
+              <div className="font-mono text-slate-200">{systemHealth.database.url}</div>
             </div>
           </div>
         </div>

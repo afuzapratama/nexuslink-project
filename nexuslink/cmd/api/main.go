@@ -643,10 +643,19 @@ func main() {
 				return
 			}
 
-			// Ambil settings existing untuk preserve CreatedAt
+			// Ambil settings existing untuk preserve CreatedAt dan credentials
 			existing, _ := settingsRepo.Get(r.Context())
 			if existing != nil {
 				input.CreatedAt = existing.CreatedAt
+
+				// Preserve admin credentials jika tidak dikirim dari frontend
+				// Frontend bisa kirim empty string untuk fields lain, tapi credentials harus explicit
+				if input.AdminUsername == "" && existing.AdminUsername != "" {
+					input.AdminUsername = existing.AdminUsername
+				}
+				if input.AdminPassword == "" && existing.AdminPassword != "" {
+					input.AdminPassword = existing.AdminPassword
+				}
 
 				// Jika API key dikirim dengan mask (****xxxx), gunakan nilai lama
 				if strings.HasPrefix(input.ProxyCheckAPIKey, "****") {

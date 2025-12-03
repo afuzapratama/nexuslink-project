@@ -112,6 +112,7 @@ export default function LinksPage() {
    const [activeFrom, setActiveFrom] = useState('');
    const [activeUntil, setActiveUntil] = useState('');
   const [deleteConfirmAlias, setDeleteConfirmAlias] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   
 
@@ -176,7 +177,8 @@ export default function LinksPage() {
         setCountries([]);
       } else {
         const countriesData: Country[] = await countriesRes.json();
-        setCountries(countriesData);
+        // Sort countries alphabetically by name
+        setCountries(countriesData.sort((a, b) => a.name.localeCompare(b.name)));
       }
     } catch (err) {
       console.error(err);
@@ -399,6 +401,13 @@ export default function LinksPage() {
 
   // Delete single link
   async function handleDelete(alias: string) {
+    // Prevent double execution
+    if (isDeleting) return;
+    
+    // Close modal immediately and set deleting flag
+    setDeleteConfirmAlias(null);
+    setIsDeleting(true);
+    
     try {
       const res = await fetch(`/api/nexus/links/${encodeURIComponent(alias)}`, {
         method: 'DELETE',
@@ -409,11 +418,12 @@ export default function LinksPage() {
       }
 
       showToast(`Link "${alias}" deleted successfully!`, 'success');
-      setDeleteConfirmAlias(null);
       await loadData();
     } catch (err) {
       console.error(err);
       showToast('Failed to delete link', 'error');
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -1104,9 +1114,10 @@ export default function LinksPage() {
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirmAlias)}
-                className="flex-1 rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-600"
+                disabled={isDeleting}
+                className="flex-1 rounded-lg bg-rose-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Confirm Delete
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

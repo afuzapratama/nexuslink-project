@@ -6,14 +6,22 @@
  */
 
 const { spawn } = require('child_process');
+const { config } = require('dotenv');
+const path = require('path');
+
+// Load .env files in order of priority
+config({ path: path.join(__dirname, '.env.local') });
+config({ path: path.join(__dirname, '.env') });
 
 const port = process.env.PORT || 3000;
 
-console.log(`Starting Next.js dev server on port ${port}...`);
+console.log(`[NexusLink] Environment PORT=${process.env.PORT || 'not set'}`);
+console.log(`[NexusLink] Starting Next.js dev server on port ${port}...`);
 
 const child = spawn('next', ['dev', '-p', port.toString()], {
   stdio: 'inherit',
-  shell: true
+  shell: true,
+  env: { ...process.env, PORT: port.toString() }
 });
 
 child.on('error', (error) => {

@@ -6,8 +6,8 @@ const API_BASE = process.env.NEXUS_API_BASE || 'http://localhost:8080';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow access to login page and API routes
-  if (pathname === '/login' || pathname.startsWith('/api/nexus/auth')) {
+  // Allow access to login page, API routes, and health check
+  if (pathname === '/login' || pathname.startsWith('/api/nexus/auth') || pathname.startsWith('/api/nexus/health')) {
     return NextResponse.next();
   }
 

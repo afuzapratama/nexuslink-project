@@ -486,7 +486,7 @@ func containsOS(allowedOS []string, detectedOS string) bool {
 	for _, allowed := range allowedOS {
 		allowedLower := strings.ToLower(allowed)
 		allowedNormalized := strings.ReplaceAll(strings.ReplaceAll(allowedLower, " ", ""), "_", "")
-		
+
 		// Check if detected OS contains allowed OS name
 		// e.g., "intelmacosх1015_7" contains "macos"
 		// e.g., "windows10" contains "windows"

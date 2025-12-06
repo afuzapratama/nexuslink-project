@@ -83,6 +83,90 @@ func extractBotType(pattern string) string {
 	return pattern
 }
 
+// normalizeOS membersihkan dan menyederhanakan nama OS untuk matching
+func normalizeOS(osName string) string {
+	if osName == "" {
+		return ""
+	}
+
+	// iOS iPhone normalization
+	if strings.Contains(osName, "iPhone OS") {
+		return "iOS"
+	}
+
+	// iOS iPad normalization
+	if strings.Contains(osName, "CPU OS") && strings.Contains(osName, "like Mac OS X") {
+		return "iPadOS"
+	}
+
+	// macOS normalization
+	if strings.Contains(osName, "Mac OS X") {
+		return "macOS"
+	}
+
+	// Android normalization (remove version numbers)
+	if strings.HasPrefix(osName, "Android") {
+		// Extract just "Android" without version
+		return "Android"
+	}
+
+	// Windows normalization
+	if strings.HasPrefix(osName, "Windows") {
+		return "Windows"
+	}
+
+	// Linux normalization
+	if strings.Contains(osName, "Linux") || strings.Contains(osName, "Ubuntu") {
+		return "Linux"
+	}
+
+	return osName
+}
+
+// normalizeBrowser memperbaiki deteksi browser untuk edge cases
+func normalizeBrowser(browserName, uaString string) string {
+	if browserName == "" {
+		return ""
+	}
+
+	// Samsung Browser detection
+	if strings.Contains(uaString, "SamsungBrowser") {
+		return "Samsung Browser"
+	}
+
+	// Chrome iOS (CriOS) detection
+	if strings.Contains(uaString, "CriOS") {
+		return "Chrome"
+	}
+
+	// Firefox iOS (FxiOS) detection
+	if strings.Contains(uaString, "FxiOS") {
+		return "Firefox"
+	}
+
+	return browserName
+}
+
+// detectDeviceType menentukan tipe device dengan lebih akurat
+func detectDeviceType(u *user_agent.UserAgent, uaString string) string {
+	// iPad detection
+	if strings.Contains(uaString, "iPad") {
+		return "Tablet"
+	}
+
+	// Android Tablet detection (no "Mobile" keyword)
+	if strings.Contains(uaString, "Android") && !strings.Contains(uaString, "Mobile") {
+		return "Tablet"
+	}
+
+	// Mobile detection
+	if u.Mobile() {
+		return "Mobile"
+	}
+
+	return "Desktop"
+}
+
 // Parse mengembalikan os, deviceType, browserName, isBot, botType
 func Parse(uaString string) (string, string, string, bool, string) {
 	if uaString == "" {
@@ -103,13 +187,14 @@ func Parse(uaString string) (string, string, string, bool, string) {
 		_, botType = IsKnownBot(uaString)
 	}
 
-	os := u.OS()
-	browserName, _ := u.Browser()
+	// Get raw values
+	osRaw := u.OS()
+	browserRaw, _ := u.Browser()
 
-	device := "Desktop"
-	if u.Mobile() {
-		device = "Mobile"
-	}
+	// Normalize untuk matching yang lebih baik
+	os := normalizeOS(osRaw)
+	browserName := normalizeBrowser(browserRaw, uaString)
+	device := detectDeviceType(u, uaString)
 
 	return os, device, browserName, isBot, botType
 }
